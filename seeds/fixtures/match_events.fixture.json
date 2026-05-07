@@ -1,0 +1,28 @@
+﻿{
+  "fixtures": [
+    {
+      "name": "live_goal_event",
+      "matchId": "match_081",
+      "event": {
+        "sequence": 12,
+        "type": "GOAL",
+        "minute": 54,
+        "second": 10,
+        "teamSlotId": "slot_group_a_1",
+        "playerName": "Test Striker",
+        "payload": { "xg": 0.24 }
+      }
+    },
+    {
+      "name": "var_overturn",
+      "matchId": "match_081",
+      "event": {
+        "sequence": 13,
+        "type": "VAR_OVERTURN",
+        "minute": 58,
+        "subject": "goal_disallowed",
+        "payload": { "reason": "offside" }
+      }
+    }
+  ]
+}

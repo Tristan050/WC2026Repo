@@ -1,0 +1,35 @@
+﻿{
+  "generatedAt": "2026-05-06T00:00:00Z",
+  "tournament": "FIFA World Cup 2026",
+  "totalMatches": 104,
+  "matches": [
+    {
+      "id": "match_001",
+      "slug": "world-cup-2026-match-001",
+      "stage": "GROUP",
+      "matchNumber": 1,
+      "kickoffUtc": "2026-06-10T16:00:00Z",
+      "kickoffTimezone": "UTC",
+      "stadium": { "name": "Estadio Azteca", "city": "Mexico City" },
+      "home": { "slotLabel": "Winner Group A" },
+      "away": { "slotLabel": "Runner-up Group A" },
+      "status": "SCHEDULED",
+      "predictionStatus": "COMING_SOON",
+      "score": { "home": 0, "away": 0, "homePen": null, "awayPen": null }
+    },
+    {
+      "id": "match_081",
+      "slug": "world-cup-2026-match-081",
+      "stage": "ROUND_OF_32",
+      "matchNumber": 81,
+      "kickoffUtc": "2026-06-30T18:00:00Z",
+      "kickoffTimezone": "UTC",
+      "stadium": { "name": "MetLife Stadium", "city": "New York/New Jersey" },
+      "home": { "slotLabel": "Winner Group A" },
+      "away": { "slotLabel": "Runner-up Group B" },
+      "status": "SCHEDULED",
+      "predictionStatus": "COMING_SOON",
+      "score": { "home": 0, "away": 0, "homePen": null, "awayPen": null }
+    }
+  ]
+}

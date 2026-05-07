@@ -1,0 +1,39 @@
+{
+  "name": "wc2026-predictbattle",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev --name init_wc2026",
+    "prisma:deploy": "prisma migrate deploy",
+    "seed": "tsx prisma/seed.ts",
+    "fixtures:sync": "tsx scripts/sync-official-fixtures.ts",
+    "fixtures:export": "node scripts/export-official-fixtures.cjs",
+    "db:push": "prisma db push",
+    "worker:events": "tsx src/workers/match-event.runner.ts",
+    "worker:windows": "tsx src/workers/prediction-window.runner.ts",
+    "worker:leaderboard": "tsx src/workers/leaderboard.runner.ts",
+    "cron:tick": "tsx src/cron/tick.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.8.2",
+    "ioredis": "^5.4.1",
+    "next": "15.3.2",
+    "pino": "^9.6.0",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.14",
+    "@types/react": "^19.1.4",
+    "prisma": "^6.8.2",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}
