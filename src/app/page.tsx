@@ -2,6 +2,60 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 
+/* ─────────────────────── COUNTDOWN ─────────────────────── */
+const KICKOFF_UTC = new Date("2026-06-11T18:00:00.000Z");
+
+function useCountdown() {
+  const [left, setLeft] = useState(() => KICKOFF_UTC.getTime() - Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setLeft(KICKOFF_UTC.getTime() - Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  if (left <= 0) return null;
+  const s = Math.floor(left / 1000);
+  return {
+    days: Math.floor(s / 86400),
+    hrs:  Math.floor((s % 86400) / 3600),
+    mins: Math.floor((s % 3600) / 60),
+    secs: s % 60,
+  };
+}
+
+function CountdownBanner() {
+  const t = useCountdown();
+  const p = (n: number) => String(n).padStart(2, "0");
+
+  if (!t) return (
+    <div className="cd-banner cd-banner-live" role="status" aria-label="World Cup 2026 is live">
+      <span className="cd-live-pulse" aria-hidden="true" />
+      <span className="cd-live-label">🏆 WORLD CUP 2026 IS LIVE</span>
+      <span className="cd-live-pulse" aria-hidden="true" />
+    </div>
+  );
+
+  return (
+    <div
+      className="cd-banner"
+      role="timer"
+      aria-label={`Kickoff in ${t.days} days ${t.hrs} hours ${t.mins} minutes ${t.secs} seconds`}
+    >
+      <span className="cd-eyebrow">⚽ KICKOFF IN</span>
+      <div className="cd-clock" aria-hidden="true">
+        <div className="cd-unit"><span className="cd-n">{t.days}</span><span className="cd-l">DAYS</span></div>
+        <span className="cd-sep">:</span>
+        <div className="cd-unit"><span className="cd-n">{p(t.hrs)}</span><span className="cd-l">HRS</span></div>
+        <span className="cd-sep">:</span>
+        <div className="cd-unit"><span className="cd-n">{p(t.mins)}</span><span className="cd-l">MIN</span></div>
+        <span className="cd-sep cd-sep-blink">:</span>
+        <div className="cd-unit"><span className="cd-n cd-n-sec">{p(t.secs)}</span><span className="cd-l">SEC</span></div>
+      </div>
+      <span className="cd-match">🇲🇽 Mexico vs South Africa 🇿🇦 · Azteca</span>
+    </div>
+  );
+}
+
+
+
 /* ─────────────────────── TYPES ─────────────────────── */
 type LiveMatch = {
   id: string;
@@ -371,6 +425,9 @@ export default function HomePage() {
             <div className="badge-pill">WC2026</div>
           </div>
         </header>
+
+        {/* ── Countdown banner ── */}
+        <CountdownBanner />
 
         <main className="page" id="main-content">
 
