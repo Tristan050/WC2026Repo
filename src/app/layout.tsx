@@ -1,6 +1,7 @@
 ﻿import "./globals.css";
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://worldcupclutch.com";
 
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         {children}
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
