@@ -6,206 +6,124 @@ export const runtime = "edge";
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
 
-  const home    = searchParams.get("home")  ?? "Home";
-  const away    = searchParams.get("away")  ?? "Away";
-  const stage   = searchParams.get("stage") ?? "World Cup 2026";
-  const hs      = searchParams.get("hs")    ?? "0";
-  const as_     = searchParams.get("as")    ?? "0";
-  const status  = searchParams.get("status") ?? "UPCOMING";
-  const pick    = searchParams.get("pick");  // HOME | AWAY | DRAW
+  const home   = searchParams.get("home")   ?? "Home";
+  const away   = searchParams.get("away")   ?? "Away";
+  const stage  = searchParams.get("stage")  ?? "World Cup 2026";
+  const hs     = searchParams.get("hs")     ?? "0";
+  const as_    = searchParams.get("as")     ?? "0";
+  const status = searchParams.get("status") ?? "UPCOMING";
+  const pick   = searchParams.get("pick");
 
-  const isLive  = ["LIVE","HALFTIME","EXTRA_TIME","PENALTIES"].includes(status);
-  const isFt    = status === "FINISHED";
+  const isLive = ["LIVE","HALFTIME","EXTRA_TIME","PENALTIES"].includes(status);
+  const isFt   = status === "FINISHED";
 
   const pickLabel: Record<string, string> = {
-    HOME: `I picked ${home} to win`,
-    AWAY: `I picked ${away} to win`,
+    HOME: `I picked ${home}`,
+    AWAY: `I picked ${away}`,
     DRAW: "I picked a Draw",
   };
 
   return new ImageResponse(
     (
-      <div
-        style={{
-          width: "1200px",
-          height: "630px",
-          display: "flex",
-          flexDirection: "column",
-          background: "linear-gradient(135deg, #060b12 0%, #0d1c30 50%, #060b12 100%)",
-          fontFamily: "sans-serif",
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
-        {/* Background glow blobs */}
-        <div style={{
-          position: "absolute", top: -80, right: -80,
-          width: 400, height: 400, borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(59,158,255,0.18) 0%, transparent 70%)",
-        }} />
-        <div style={{
-          position: "absolute", bottom: -60, left: -60,
-          width: 300, height: 300, borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(47,217,160,0.10) 0%, transparent 70%)",
-        }} />
+      <div style={{
+        width:"1200px", height:"630px",
+        display:"flex", flexDirection:"column",
+        background:"linear-gradient(135deg, #03080f 0%, #071525 50%, #03080f 100%)",
+        fontFamily:"sans-serif",
+        position:"relative", overflow:"hidden",
+      }}>
+        {/* Background glow */}
+        <div style={{position:"absolute",top:-100,right:-100,width:500,height:500,borderRadius:"50%",background:"radial-gradient(circle,rgba(0,102,255,0.2) 0%,transparent 65%)"}} />
+        <div style={{position:"absolute",bottom:-80,left:-80,width:350,height:350,borderRadius:"50%",background:"radial-gradient(circle,rgba(0,232,122,0.08) 0%,transparent 65%)"}} />
+        {/* Top accent line */}
+        <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:"linear-gradient(90deg,transparent,#0066ff,#3385ff,transparent)"}} />
 
-        {/* Top bar */}
-        <div style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "32px 52px 0",
-        }}>
-          <span style={{
-            fontSize: 28, fontWeight: 900, letterSpacing: "0.05em",
-            textTransform: "uppercase", color: "#fff",
-          }}>
-            World<span style={{ color: "#3b9eff" }}>Cup</span>Clutch
-          </span>
-          <span style={{
-            fontSize: 18, color: "#8ab4d0",
-            padding: "6px 18px",
-            border: "1px solid rgba(59,158,255,0.3)",
-            borderRadius: 999,
-            background: "rgba(59,158,255,0.08)",
+        {/* Header */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"36px 56px 0"}}>
+          <div style={{fontSize:28,fontWeight:900,letterSpacing:"0.06em",color:"#fff"}}>
+            WORLD<span style={{color:"#3385ff"}}>CUP</span>CLUTCH
+          </div>
+          <div style={{
+            fontSize:17,color:"#94b4d4",
+            padding:"6px 20px",border:"1px solid rgba(0,102,255,0.35)",
+            borderRadius:999,background:"rgba(0,102,255,0.1)",
+            letterSpacing:"0.04em",
           }}>
             {stage}
-          </span>
+          </div>
         </div>
 
         {/* Main matchup */}
-        <div style={{
-          display: "flex",
-          flex: 1,
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "0 52px",
-          gap: 0,
-        }}>
-          {/* Home team */}
-          <div style={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 12,
-          }}>
-            <span style={{ fontSize: 64 }}>🏟️</span>
-            <span style={{
-              fontSize: 36, fontWeight: 900, color: "#fff",
-              textAlign: "center", letterSpacing: "-0.01em",
-            }}>
-              {home}
-            </span>
+        <div style={{display:"flex",flex:1,alignItems:"center",justifyContent:"center",padding:"0 56px",gap:0}}>
+          {/* Home */}
+          <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:16}}>
+            <div style={{fontSize:72}}>{home.toLowerCase().includes("mexico")?"🇲🇽":home.toLowerCase().includes("brazil")?"🇧🇷":home.toLowerCase().includes("france")?"🇫🇷":home.toLowerCase().includes("germany")?"🇩🇪":home.toLowerCase().includes("argentina")?"🇦🇷":home.toLowerCase().includes("england")?"🏴󠁧󠁢󠁥󠁮󠁧󠁿":"⚽"}</div>
+            <div style={{fontSize:40,fontWeight:900,color:"#fff",textAlign:"center",lineHeight:1.1,letterSpacing:"-0.01em"}}>{home}</div>
           </div>
 
           {/* Score / vs */}
-          <div style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 8,
-            padding: "0 40px",
-          }}>
-            {isLive || isFt ? (
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:12,padding:"0 44px"}}>
+            {(isLive || isFt) ? (
               <div style={{
-                fontSize: 72, fontWeight: 900,
-                color: "#fff", letterSpacing: "0.08em",
-                background: "rgba(255,255,255,0.07)",
-                border: "2px solid rgba(255,255,255,0.15)",
-                borderRadius: 20,
-                padding: "8px 32px",
+                fontSize:80,fontWeight:900,color:"#fff",letterSpacing:"0.1em",
+                background:"rgba(255,255,255,0.06)",border:"2px solid rgba(255,255,255,0.15)",
+                borderRadius:20,padding:"10px 36px",
               }}>
                 {hs} – {as_}
               </div>
             ) : (
-              <div style={{
-                fontSize: 48, fontWeight: 700,
-                color: "#3b9eff", letterSpacing: "0.12em",
-              }}>
-                VS
-              </div>
+              <div style={{fontSize:52,fontWeight:900,color:"#3385ff",letterSpacing:"0.15em"}}>VS</div>
             )}
             {isLive && (
-              <span style={{
-                fontSize: 18, fontWeight: 800, color: "#ff8090",
-                background: "rgba(255,64,96,0.15)",
-                border: "1px solid rgba(255,64,96,0.5)",
-                borderRadius: 999, padding: "4px 16px",
-                letterSpacing: "0.08em",
+              <div style={{
+                fontSize:19,fontWeight:800,color:"#ff7080",
+                background:"rgba(255,51,85,0.15)",border:"1px solid rgba(255,51,85,0.5)",
+                borderRadius:999,padding:"5px 18px",letterSpacing:"0.08em",
               }}>
                 ● LIVE
-              </span>
+              </div>
             )}
             {isFt && (
-              <span style={{
-                fontSize: 18, fontWeight: 800, color: "#60e8b0",
-                background: "rgba(47,217,160,0.12)",
-                border: "1px solid rgba(47,217,160,0.35)",
-                borderRadius: 999, padding: "4px 16px",
-                letterSpacing: "0.08em",
+              <div style={{
+                fontSize:19,fontWeight:800,color:"#33cc77",
+                background:"rgba(0,232,122,0.12)",border:"1px solid rgba(0,232,122,0.4)",
+                borderRadius:999,padding:"5px 18px",letterSpacing:"0.08em",
               }}>
                 FULL TIME
-              </span>
+              </div>
             )}
           </div>
 
-          {/* Away team */}
-          <div style={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 12,
-          }}>
-            <span style={{ fontSize: 64 }}>✈️</span>
-            <span style={{
-              fontSize: 36, fontWeight: 900, color: "#fff",
-              textAlign: "center", letterSpacing: "-0.01em",
-            }}>
-              {away}
-            </span>
+          {/* Away */}
+          <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:16}}>
+            <div style={{fontSize:72}}>{away.toLowerCase().includes("spain")?"🇪🇸":away.toLowerCase().includes("portugal")?"🇵🇹":away.toLowerCase().includes("netherlands")?"🇳🇱":away.toLowerCase().includes("argentina")?"🇦🇷":away.toLowerCase().includes("usa")?"🇺🇸":"⚽"}</div>
+            <div style={{fontSize:40,fontWeight:900,color:"#fff",textAlign:"center",lineHeight:1.1,letterSpacing:"-0.01em"}}>{away}</div>
           </div>
         </div>
 
         {/* Pick banner */}
         {pick && pickLabel[pick] && (
           <div style={{
-            margin: "0 52px 20px",
-            padding: "14px 28px",
-            background: "linear-gradient(135deg, rgba(59,158,255,0.15), rgba(59,158,255,0.08))",
-            border: "1px solid rgba(59,158,255,0.4)",
-            borderRadius: 16,
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
+            margin:"0 56px 20px",padding:"16px 28px",
+            background:"linear-gradient(135deg,rgba(0,102,255,0.18),rgba(0,102,255,0.08))",
+            border:"1px solid rgba(0,102,255,0.45)",borderRadius:16,
+            display:"flex",alignItems:"center",gap:14,
           }}>
-            <span style={{ fontSize: 28 }}>🎯</span>
-            <span style={{ fontSize: 24, fontWeight: 700, color: "#9fd4ff" }}>
-              {pickLabel[pick]}
-            </span>
-            <span style={{ marginLeft: "auto", fontSize: 18, color: "#8ab4d0" }}>
-              Can you beat me?
-            </span>
+            <span style={{fontSize:30}}>🎯</span>
+            <span style={{fontSize:26,fontWeight:700,color:"#80b3ff"}}>{pickLabel[pick]}</span>
+            <span style={{marginLeft:"auto",fontSize:19,color:"#4a6a8a",fontWeight:600}}>Beat me on WorldCupClutch →</span>
           </div>
         )}
 
         {/* Footer */}
         <div style={{
-          display: "flex",
-          justifyContent: "center",
-          padding: "12px 52px 32px",
-          color: "#4a7090",
-          fontSize: 17,
-          letterSpacing: "0.04em",
+          display:"flex",justifyContent:"center",alignItems:"center",gap:12,
+          padding:"12px 56px 36px",borderTop:"1px solid rgba(255,255,255,0.05)",
         }}>
-          worldcupclutch.com · Predict every moment of WC2026
+          <span style={{fontSize:16,color:"#2a4060",letterSpacing:"0.05em"}}>worldcupclutch.com · Free World Cup 2026 Prediction Game</span>
         </div>
       </div>
     ),
-    {
-      width: 1200,
-      height: 630,
-    }
+    { width:1200, height:630 }
   );
 }
