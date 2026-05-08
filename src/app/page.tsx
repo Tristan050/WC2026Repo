@@ -231,96 +231,431 @@ function BracketTile({stage,matches,onPress}:{stage:string;matches:BracketStage[
   );
 }
 
-/* ─────────────────────── MOCK LEADERBOARD ─────────────────────── */
-const MOCK_LB = [
-  { rank:1, name:"FootballOracle", pts:2840, streak:12, initials:"FO" },
-  { rank:2, name:"TacticalGenius", pts:2710, streak:8,  initials:"TG" },
-  { rank:3, name:"PredictKing",    pts:2650, streak:6,  initials:"PK" },
-  { rank:4, name:"GoalMachine",    pts:2510, streak:4,  initials:"GM" },
-  { rank:5, name:"SetPieceAce",    pts:2380, streak:3,  initials:"SA" },
-];
-function LeaderboardScreen() {
+/* ─────────────────────── TYPES: LEADERBOARD / PROFILE ─────────────────────── */
+type LbRow = {
+  rank: number;
+  userId: string;
+  name: string;
+  username: string | null;
+  image: string | null;
+  points: number;
+  xp: number;
+  streakCurrent: number;
+  streakBest: number;
+  totalPicks: number;
+};
+
+type ProfileData = {
+  id: string;
+  name: string | null;
+  username: string | null;
+  email: string | null;
+  image: string | null;
+  points: number;
+  xp: number;
+  streakCurrent: number;
+  streakBest: number;
+  role: string;
+  totalPicks: number;
+  rank: number | null;
+  accuracy: number | null;
+  awards: { badgeCode: string; title: string }[];
+  picks: {
+    id: string;
+    choice: string;
+    isCorrect: boolean | null;
+    pointsAwarded: number;
+    submittedAt: string;
+    window: {
+      kind: string;
+      match: {
+        matchNumber: number;
+        stage: string;
+        homeSlot: { label: string };
+        awaySlot: { label: string };
+        homeScore: number;
+        awayScore: number;
+        status: string;
+      };
+    };
+  }[];
+};
+
+/* ─────────────────────── AVATAR HELPER ─────────────────────── */
+function Avatar({ name, image, size = 32 }: { name: string; image?: string | null; size?: number }) {
+  if (image) return (
+    <img
+      src={image}
+      alt={name}
+      width={size}
+      height={size}
+      style={{ width:size, height:size, borderRadius:"50%", objectFit:"cover", flexShrink:0 }}
+      referrerPolicy="no-referrer"
+    />
+  );
+  const initials = name.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase();
+  const colors = ["#0066ff","#0052cc","#0044aa","#1a75ff","#3385ff"];
+  const color  = colors[name.charCodeAt(0) % colors.length];
   return (
-    <div className="panel" style={{marginTop: "var(--space-4)"}}>
-      <div className="section-header">
-        <h2 className="section-title">🏅 Global Rankings</h2>
-        <span className="section-action">Tournament · WC2026</span>
-      </div>
-      <div className="leaderboard-panel" role="list" aria-label="Global leaderboard">
-        {MOCK_LB.map(u => (
-          <article key={u.rank} className="lb-row" role="listitem">
-            <span className={`lb-rank${u.rank<=3?` top${u.rank}`:""}`} aria-label={`Rank ${u.rank}`}>
-              {u.rank === 1 ? "🥇" : u.rank === 2 ? "🥈" : u.rank === 3 ? "🥉" : u.rank}
-            </span>
-            <div className="lb-avatar" aria-hidden="true">{u.initials}</div>
-            <span className="lb-name">{u.name}</span>
-            {u.streak > 0 && <span className="lb-streak" title={`${u.streak} correct in a row`}>🔥 {u.streak}</span>}
-            <div>
-              <div className="lb-pts">{u.pts.toLocaleString()}</div>
-              <div className="lb-pts-label">PTS</div>
-            </div>
-          </article>
+    <div style={{
+      width:size, height:size, borderRadius:"50%",
+      background: `linear-gradient(135deg, ${color}, #003399)`,
+      display:"flex", alignItems:"center", justifyContent:"center",
+      fontSize: size * 0.36, fontWeight:700, color:"#fff",
+      flexShrink:0, fontFamily:"var(--font-display)",
+    }}>
+      {initials || "?"}
+    </div>
+  );
+}
+
+/* ─────────────────────── LEADERBOARD SCREEN ─────────────────────── */
+const LB_PERIODS = [
+  { key:"TOURNAMENT", label:"All Time", subkey:"wc2026" },
+  { key:"MATCHDAY",   label:"Matchday", subkey:"latest" },
+  { key:"DAILY",      label:"Today",    subkey:"today"  },
+] as const;
+
+function LeaderboardScreen({ currentUserId }: { currentUserId?: string }) {
+  const [rows,      setRows]      = useState<LbRow[]>([]);
+  const [loading,   setLoading]   = useState(true);
+  const [error,     setError]     = useState("");
+  const [period,    setPeriod]    = useState<"TOURNAMENT"|"MATCHDAY"|"DAILY">("TOURNAMENT");
+  const [subkey,    setSubkey]    = useState("wc2026");
+
+  useEffect(() => {
+    setLoading(true);
+    setError("");
+    fetch(`/api/leaderboard/global?period=${period}&key=${subkey}&limit=50`)
+      .then(r => r.json())
+      .then(d => { setRows(d.rows ?? []); setLoading(false); })
+      .catch(() => { setError("Could not load leaderboard."); setLoading(false); });
+  }, [period, subkey]);
+
+  const myRank = rows.find(r => r.userId === currentUserId);
+
+  return (
+    <div style={{marginTop:"var(--space-4)"}}>
+      {/* Period selector */}
+      <div className="lb-period-bar" role="tablist" aria-label="Leaderboard period">
+        {LB_PERIODS.map(p => (
+          <button
+            key={p.key}
+            role="tab"
+            aria-selected={period === p.key}
+            className={`lb-period-btn${period === p.key ? " active" : ""}`}
+            onClick={() => { setPeriod(p.key); setSubkey(p.subkey); }}
+          >
+            {p.label}
+          </button>
         ))}
       </div>
-      <div className="divider" />
-      <div className="lb-empty" role="status" aria-live="polite">
-        <div className="lb-empty-icon" aria-hidden="true">🎯</div>
-        <p className="lb-empty-title">Your picks count</p>
-        <p className="lb-empty-sub">Start predicting matches to join the global rankings.<br />Top predictors win exclusive WC2026 badges.</p>
+
+      <div className="panel" style={{marginTop:"var(--space-3)"}}>
+        <div className="section-header">
+          <h2 className="section-title">🏅 Global Rankings</h2>
+          <span className="section-action">WC2026</span>
+        </div>
+
+        {/* Your rank banner */}
+        {myRank && (
+          <div className="lb-my-rank" role="status">
+            <span className="lb-my-rank-label">Your rank</span>
+            <span className="lb-my-rank-val">#{myRank.rank}</span>
+            <span className="lb-my-rank-pts">{myRank.points.toLocaleString()} pts</span>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="leaderboard-panel">
+            {Array.from({length:8}).map((_,i) => (
+              <div key={i} className="lb-row">
+                <div className="skeleton" style={{width:28,height:18,borderRadius:4}} />
+                <div className="skeleton" style={{width:32,height:32,borderRadius:"50%"}} />
+                <div className="skeleton" style={{flex:1,height:14}} />
+                <div className="skeleton" style={{width:50,height:18}} />
+              </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div className="lb-empty">
+            <div className="lb-empty-icon">⚠️</div>
+            <p className="lb-empty-title">Could not load rankings</p>
+            <p className="lb-empty-sub">{error}</p>
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="lb-empty" role="status">
+            <div className="lb-empty-icon" aria-hidden="true">🎯</div>
+            <p className="lb-empty-title">No picks scored yet</p>
+            <p className="lb-empty-sub">
+              Rankings go live once prediction windows score.<br />
+              Be early — start predicting now.
+            </p>
+          </div>
+        ) : (
+          <div className="leaderboard-panel" role="list" aria-label="Global leaderboard">
+            {rows.map(u => (
+              <article
+                key={u.userId}
+                className={`lb-row${u.userId === currentUserId ? " lb-row-me" : ""}`}
+                role="listitem"
+              >
+                <span className={`lb-rank${u.rank<=3?` top${u.rank}`:""}`} aria-label={`Rank ${u.rank}`}>
+                  {u.rank === 1 ? "🥇" : u.rank === 2 ? "🥈" : u.rank === 3 ? "🥉" : u.rank}
+                </span>
+                <Avatar name={u.name} image={u.image} size={32} />
+                <div style={{flex:1, minWidth:0}}>
+                  <div className="lb-name">{u.name}</div>
+                  {u.username && <div style={{fontSize:"0.65rem",color:"var(--text-tertiary)"}}>@{u.username}</div>}
+                </div>
+                {u.streakCurrent > 0 && (
+                  <span className="lb-streak" title={`${u.streakCurrent} correct in a row`}>
+                    🔥 {u.streakCurrent}
+                  </span>
+                )}
+                <div style={{textAlign:"right", flexShrink:0}}>
+                  <div className="lb-pts">{u.points.toLocaleString()}</div>
+                  <div className="lb-pts-label">PTS</div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+/* ─────────────────────── SIGN IN PANEL ─────────────────────── */
+function SignInPanel({ onSignIn }: { onSignIn: () => void }) {
+  return (
+    <div className="signin-panel">
+      <div className="signin-icon" aria-hidden="true">⚽</div>
+      <h2 className="signin-title">Join WorldCupClutch</h2>
+      <p className="signin-sub">
+        Sign in to save your picks, build your streak, and compete on the global leaderboard across all 104 World Cup 2026 matches.
+      </p>
+      <div className="signin-perks">
+        <div className="signin-perk">🏅 Global leaderboard ranking</div>
+        <div className="signin-perk">🔥 Streak tracking & badges</div>
+        <div className="signin-perk">📊 Pick history & accuracy stats</div>
+        <div className="signin-perk">🔔 Match reminders (coming soon)</div>
+      </div>
+      <button className="btn-google" onClick={onSignIn} aria-label="Sign in with Google">
+        <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+          <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
+          <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+          <path fill="#FBBC05" d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/>
+          <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 7.293C4.672 5.163 6.656 3.58 9 3.58z"/>
+        </svg>
+        Continue with Google
+      </button>
+      <p className="signin-legal">
+        Free to play · No credit card required
+      </p>
     </div>
   );
 }
 
 /* ─────────────────────── PROFILE SCREEN ─────────────────────── */
-const BADGES = [
-  { icon:"⚡", name:"First Pick",   earned:false },
-  { icon:"🎯", name:"Sharp Eye",    earned:false },
-  { icon:"🔥", name:"On Fire",      earned:false },
-  { icon:"🏆", name:"Champion",     earned:false },
-  { icon:"🌍", name:"Globe Trotter",earned:false },
-  { icon:"💡", name:"Upset King",   earned:false },
-  { icon:"📈", name:"Streaker",     earned:false },
-  { icon:"🥇", name:"Top 10",       earned:false },
+const ALL_BADGES = [
+  { code:"first_pick",   icon:"⚡", name:"First Pick"    },
+  { code:"sharp_eye",    icon:"🎯", name:"Sharp Eye"     },
+  { code:"on_fire",      icon:"🔥", name:"On Fire"       },
+  { code:"champion",     icon:"🏆", name:"Champion"      },
+  { code:"globe",        icon:"🌍", name:"Globe Trotter" },
+  { code:"upset_king",   icon:"💡", name:"Upset King"    },
+  { code:"streaker",     icon:"📈", name:"Streaker"      },
+  { code:"top_10",       icon:"🥇", name:"Top 10"        },
 ];
-function ProfileScreen() {
+
+function ProfileScreen({ onSignIn }: { onSignIn: () => void }) {
+  const [profile,  setProfile]  = useState<ProfileData | null>(null);
+  const [loading,  setLoading]  = useState(true);
+  const [authed,   setAuthed]   = useState(false);
+  const [username, setUsername] = useState("");
+  const [editing,  setEditing]  = useState(false);
+  const [saving,   setSaving]   = useState(false);
+  const [saveMsg,  setSaveMsg]  = useState("");
+
+  useEffect(() => {
+    fetch("/api/profile/me")
+      .then(r => {
+        if (r.status === 401) { setAuthed(false); setLoading(false); return null; }
+        setAuthed(true);
+        return r.json();
+      })
+      .then(d => { if (d) { setProfile(d); setUsername(d.username ?? ""); } })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const saveUsername = async () => {
+    setSaving(true);
+    setSaveMsg("");
+    const res = await fetch("/api/profile/me", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ username }),
+    });
+    const d = await res.json();
+    setSaving(false);
+    if (res.ok) {
+      setSaveMsg("✓ Saved!");
+      setEditing(false);
+      setProfile(p => p ? { ...p, username: d.username } : p);
+    } else {
+      setSaveMsg(d.error ?? "Error saving.");
+    }
+  };
+
+  if (loading) return (
+    <div className="panel" style={{marginTop:"var(--space-4)", padding:"var(--space-10)"}}>
+      <div style={{display:"flex",flexDirection:"column",gap:"var(--space-3)"}}>
+        {Array.from({length:4}).map((_,i) => (
+          <div key={i} className="skeleton" style={{height:16,borderRadius:8,width:`${70-i*10}%`}} />
+        ))}
+      </div>
+    </div>
+  );
+
+  if (!authed || !profile) return (
+    <SignInPanel onSignIn={onSignIn} />
+  );
+
+  const earnedCodes = new Set(profile.awards.map(a => a.badgeCode));
+
   return (
     <div className="profile-panel" style={{marginTop:"var(--space-4)"}}>
       <div className="panel">
-        <header className="profile-header" aria-label="Your profile">
-          <div className="profile-avatar" aria-hidden="true">?</div>
-          <div>
-            <p className="profile-info-name">Anonymous Fan</p>
-            <p className="profile-info-sub">0 predictions · WC2026</p>
+        {/* Header */}
+        <header className="profile-header">
+          <Avatar name={profile.name ?? profile.username ?? "?"} image={profile.image} size={56} />
+          <div style={{flex:1, minWidth:0}}>
+            <p className="profile-info-name">{profile.name ?? profile.username ?? "Anonymous Fan"}</p>
+            {editing ? (
+              <div style={{display:"flex",gap:"var(--space-2)",marginTop:4,alignItems:"center",flexWrap:"wrap"}}>
+                <input
+                  className="username-input"
+                  value={username}
+                  onChange={e => setUsername(e.target.value)}
+                  placeholder="username"
+                  maxLength={20}
+                  aria-label="Edit username"
+                />
+                <button className="btn-save" onClick={saveUsername} disabled={saving}>
+                  {saving ? "…" : "Save"}
+                </button>
+                <button className="btn-cancel" onClick={() => setEditing(false)}>Cancel</button>
+                {saveMsg && <span style={{fontSize:"0.72rem",color:"var(--accent-green)"}}>{saveMsg}</span>}
+              </div>
+            ) : (
+              <div style={{display:"flex",alignItems:"center",gap:8,marginTop:2}}>
+                <p className="profile-info-sub">
+                  {profile.username ? `@${profile.username}` : "No username set"} · {profile.totalPicks} picks
+                </p>
+                <button className="btn-edit" onClick={() => setEditing(true)} aria-label="Edit username">✏️</button>
+              </div>
+            )}
           </div>
+          {profile.rank && (
+            <div style={{textAlign:"center",flexShrink:0}}>
+              <div style={{fontFamily:"var(--font-display)",fontSize:"1.8rem",color:"var(--accent-gold)",lineHeight:1}}>
+                #{profile.rank}
+              </div>
+              <div style={{fontSize:"0.6rem",color:"var(--text-tertiary)",textTransform:"uppercase",letterSpacing:"0.08em"}}>
+                Global Rank
+              </div>
+            </div>
+          )}
         </header>
+
         <div className="divider" />
-        <div className="streak-card" role="status" aria-label="Current streak: 0">
-          <span className="streak-flame" aria-hidden="true">🔥</span>
-          <div>
-            <div className="streak-val">0</div>
-            <div className="streak-label">Current streak</div>
-          </div>
-          <div style={{marginLeft:"auto", textAlign:"right"}}>
-            <div className="streak-val" style={{color:"var(--accent-gold)"}}>0</div>
-            <div className="streak-label">Best ever</div>
-          </div>
-        </div>
-        <div className="divider" />
-        <h3 className="section-title" style={{marginBottom:"var(--space-3)"}}>Achievement Badges</h3>
-        <div className="badge-grid" role="list" aria-label="Achievement badges">
-          {BADGES.map(b => (
-            <div key={b.name} className={`badge-item${b.earned?" earned":""}`} role="listitem" title={b.name}>
-              <span className="badge-icon" aria-hidden="true" style={{opacity:b.earned?1:0.3}}>{b.icon}</span>
-              <span className="badge-name">{b.name}</span>
+
+        {/* Stats row */}
+        <div className="profile-stats-row">
+          {[
+            { v: profile.points.toLocaleString(), l: "Points"   },
+            { v: profile.streakCurrent,            l: "Streak 🔥"},
+            { v: profile.streakBest,               l: "Best Streak"},
+            { v: profile.accuracy !== null ? `${profile.accuracy}%` : "—", l: "Accuracy" },
+          ].map((s,i) => (
+            <div key={i} className="profile-stat-tile">
+              <div className="profile-stat-val">{s.v}</div>
+              <div className="profile-stat-label">{s.l}</div>
             </div>
           ))}
         </div>
+
+        <div className="divider" />
+
+        {/* Badges */}
+        <h3 className="section-title" style={{marginBottom:"var(--space-3)"}}>Achievement Badges</h3>
+        <div className="badge-grid" role="list" aria-label="Achievement badges">
+          {ALL_BADGES.map(b => {
+            const earned = earnedCodes.has(b.code);
+            return (
+              <div key={b.code} className={`badge-item${earned?" earned":""}`} role="listitem" title={b.name}>
+                <span className="badge-icon" aria-hidden="true" style={{opacity:earned?1:0.25}}>{b.icon}</span>
+                <span className="badge-name">{b.name}</span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Recent picks */}
+        {profile.picks.length > 0 && (
+          <>
+            <div className="divider" />
+            <h3 className="section-title" style={{marginBottom:"var(--space-3)"}}>Recent Picks</h3>
+            <div style={{display:"flex",flexDirection:"column",gap:"var(--space-2)"}}>
+              {profile.picks.slice(0,8).map(p => {
+                const m = p.window.match;
+                const scored = p.isCorrect !== null;
+                return (
+                  <div key={p.id} className="pick-history-row">
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:"0.8rem",fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                        {m.homeSlot.label} vs {m.awaySlot.label}
+                      </div>
+                      <div style={{fontSize:"0.68rem",color:"var(--text-tertiary)"}}>
+                        {p.choice} · {p.window.kind.replaceAll("_"," ")}
+                      </div>
+                    </div>
+                    {scored ? (
+                      <span className={`pick-result ${p.isCorrect?"pick-correct":"pick-wrong"}`}>
+                        {p.isCorrect ? `✓ +${p.pointsAwarded}` : "✗ 0"}
+                      </span>
+                    ) : (
+                      <span className="pick-pending">Pending</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        <div className="divider" />
+        <button
+          className="btn-signout"
+          onClick={() => { window.location.href = "/api/auth/signout"; }}
+        >
+          Sign out
+        </button>
       </div>
     </div>
   );
 }
 
+
+/* ─────────────────────── NAV CONFIG ─────────────────────── */
+const NAV: {id:Tab; icon:string; label:string}[] = [
+  {id:"matches",     icon:"⚽", label:"Matches"},
+  {id:"predict",     icon:"🎯", label:"Predict"},
+  {id:"leaderboard", icon:"🏅", label:"Ranks"},
+  {id:"profile",     icon:"👤", label:"Profile"},
+];
 /* ═══════════════════════════════════════════════════════
    MAIN PAGE
 ═══════════════════════════════════════════════════════ */
@@ -334,6 +669,21 @@ export default function HomePage() {
   const [submitted, setSubmitted] = useState<string|null>(null);
   const [picks,     setPicks]     = useState(312);
   const [tab,       setTab]       = useState<Tab>("matches");
+  // Auth: client-side session check via NextAuth /api/auth/session
+  const [sessionUserId, setSessionUserId] = useState<string|undefined>(undefined);
+
+  // Fetch NextAuth session on mount
+  useEffect(() => {
+    fetch("/api/auth/session")
+      .then(r => r.json())
+      .then(d => { if (d?.user?.id) setSessionUserId(d.user.id); })
+      .catch(() => {});
+  }, []);
+
+  const handleSignIn = () => {
+    // Redirect to Google OAuth via NextAuth
+    window.location.href = "/api/auth/signin/google?callbackUrl=" + encodeURIComponent(window.location.href);
+  };
 
   const load = useCallback(async () => {
     try {
@@ -400,21 +750,33 @@ export default function HomePage() {
   const bracketMap = Object.fromEntries(bracket.map(b=>[b.stage,b]));
   const fullBracket = ALL_STAGES.map(s => bracketMap[s] ?? {stage:s, matches:[]});
 
-  const NAV: {id:Tab; icon:string; label:string}[] = [
-    {id:"matches",     icon:"⚽", label:"Matches"},
-    {id:"predict",     icon:"🎯", label:"Predict"},
-    {id:"leaderboard", icon:"🏅", label:"Ranks"},
-    {id:"profile",     icon:"👤", label:"Profile"},
-  ];
+  // NAV defined at module level below
 
   return (
     <>
       <div className="page-wrapper">
-        {/* ── Fixed topbar ── */}
+        {/* ── Fixed topbar — with desktop nav tabs ── */}
         <header className="topbar" role="banner">
           <a href="/" className="logo" aria-label="WorldCupClutch home">
             WORLD<span className="logo-accent">CUP</span>CLUTCH
           </a>
+
+          {/* Desktop nav — hidden on mobile via CSS */}
+          <nav className="topbar-nav" aria-label="Main navigation">
+            {NAV.map(n => (
+              <button
+                key={n.id}
+                className={`topbar-nav-btn${tab === n.id ? " active" : ""}`}
+                onClick={() => setTab(n.id)}
+                aria-current={tab === n.id ? "page" : undefined}
+                aria-label={n.label}
+              >
+                <span className="topbar-nav-icon" aria-hidden="true">{n.icon}</span>
+                {n.label}
+              </button>
+            ))}
+          </nav>
+
           <div className="topbar-right">
             {liveN > 0 && (
               <div className="badge-live" role="status" aria-live="polite" aria-label={`${liveN} match${liveN>1?"es":""} live`}>
@@ -468,10 +830,10 @@ export default function HomePage() {
           </section>
 
           {/* ── Leaderboard tab ── */}
-          {tab === "leaderboard" && <LeaderboardScreen />}
+          {tab === "leaderboard" && <LeaderboardScreen currentUserId={sessionUserId} />}
 
           {/* ── Profile tab ── */}
-          {tab === "profile" && <ProfileScreen />}
+          {tab === "profile" && <ProfileScreen onSignIn={handleSignIn} />}
 
           {/* ── Matches + Predict tabs ── */}
           {(tab === "matches" || tab === "predict") && (
