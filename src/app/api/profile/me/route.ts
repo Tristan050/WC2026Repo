@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth/config";
+import { auth } from "../../auth/config";
 import { prisma } from "@/lib/db/prisma";
 
 export async function GET() {
@@ -11,19 +11,19 @@ export async function GET() {
 
   try {
     const user = await prisma.user.findUnique({
-      where:  { id: session.user.id },
+      where: { id: session.user.id },
       select: {
-        id:            true,
-        name:          true,
-        username:      true,
-        email:         true,
-        image:         true,
-        points:        true,
-        xp:            true,
+        id: true,
+        name: true,
+        username: true,
+        email: true,
+        image: true,
+        points: true,
+        xp: true,
         streakCurrent: true,
-        streakBest:    true,
-        role:          true,
-        createdAt:     true,
+        streakBest: true,
+        role: true,
+        createdAt: true,
         awards: {
           orderBy: { awardedAt: "desc" },
           take: 20,
@@ -35,24 +35,24 @@ export async function GET() {
           orderBy: { submittedAt: "desc" },
           take: 20,
           select: {
-            id:           true,
-            choice:       true,
-            isCorrect:    true,
-            pointsAwarded:true,
-            submittedAt:  true,
-            scoredAt:     true,
+            id: true,
+            choice: true,
+            isCorrect: true,
+            pointsAwarded: true,
+            submittedAt: true,
+            scoredAt: true,
             window: {
               select: {
-                kind:  true,
+                kind: true,
                 match: {
                   select: {
                     matchNumber: true,
-                    stage:       true,
-                    homeSlot:    { select: { label: true } },
-                    awaySlot:    { select: { label: true } },
-                    homeScore:   true,
-                    awayScore:   true,
-                    status:      true,
+                    stage: true,
+                    homeSlot: { select: { label: true } },
+                    awaySlot: { select: { label: true } },
+                    homeScore: true,
+                    awayScore: true,
+                    status: true,
                   },
                 },
               },
@@ -68,8 +68,8 @@ export async function GET() {
 
     // Rank lookup
     const rankRow = await prisma.leaderboardSnapshot.findFirst({
-      where:   { userId: user.id, period: "TOURNAMENT", periodKey: "wc2026" },
-      select:  { rank: true },
+      where: { userId: user.id, period: "TOURNAMENT", periodKey: "wc2026" },
+      select: { rank: true },
     });
 
     // Accuracy calculation
@@ -82,7 +82,7 @@ export async function GET() {
     return NextResponse.json({
       ...user,
       totalPicks: user._count.picks,
-      rank:       rankRow?.rank ?? null,
+      rank: rankRow?.rank ?? null,
       accuracy,
     });
 
@@ -112,7 +112,7 @@ export async function PATCH(req: Request) {
   try {
     const updated = await prisma.user.update({
       where: { id: session.user.id },
-      data:  { username },
+      data: { username },
       select: { id: true, username: true },
     });
     return NextResponse.json({ ok: true, username: updated.username });
