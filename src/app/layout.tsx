@@ -2,6 +2,22 @@
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Bebas_Neue, Outfit } from "next/font/google";
+
+const bebasNeue = Bebas_Neue({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "block",
+  preload: true,
+});
+
+const outfit = Outfit({
+  subsets: ["latin"],
+  variable: "--font-body",
+  display: "block",
+  preload: true,
+});
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://worldcupclutch.com";
 const SITE_NAME = "WorldCupClutch";
@@ -154,10 +170,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" dir="ltr">
       <head>
-        {/* Preconnect for performance */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-
         {/* Theme color */}
         <meta name="theme-color" content="#03080f" />
         <meta name="color-scheme" content="dark" />
@@ -180,7 +192,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body>
+      <body className={`${bebasNeue.variable} ${outfit.variable}`}>
         <a href="#main-content" className="sr-only">Skip to main content</a>
         {children}
         <Analytics />
