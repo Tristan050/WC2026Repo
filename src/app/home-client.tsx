@@ -1135,6 +1135,12 @@ export function HomeClient({
     } catch { /* private browsing */ }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Establish anonymous pb_uid session cookie — MUST happen before any pick submission.
+  // /api/session sets an httpOnly signed cookie that the submit route uses to identify the user.
+  useEffect(() => {
+    fetch("/api/session").catch(() => { /* non-critical — will retry on first pick */ });
+  }, []);
+
   // Fetch NextAuth session on mount, then fetch streak for logged-in users
   useEffect(() => {
     fetch("/api/auth/session")
@@ -1261,11 +1267,21 @@ export function HomeClient({
     }
     setSubmitting(true);
     try {
-      const res = await fetch("/api/predictions/submit", {
+      const doPost = () => fetch("/api/predictions/submit", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ windowId: openWindow.id, choice, confidence: 3 }),
       });
+
+      let res = await doPost();
+
+      // If the pb_uid cookie wasn't set yet (e.g. /api/session call hadn't finished),
+      // establish the session now and retry exactly once.
+      if (res.status === 401) {
+        await fetch("/api/session");
+        res = await doPost();
+      }
+
       const data = await res.json();
       if (!res.ok) { setToast(data?.error ?? "Prediction failed."); return; }
       setSubmitted(choice);
