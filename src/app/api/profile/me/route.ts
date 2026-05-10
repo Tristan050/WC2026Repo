@@ -46,6 +46,7 @@ export async function GET() {
                 kind: true,
                 match: {
                   select: {
+                    id: true,
                     matchNumber: true,
                     stage: true,
                     homeSlot: { select: { label: true } },
