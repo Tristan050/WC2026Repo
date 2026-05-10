@@ -120,6 +120,17 @@ function flag(label: string): string {
   return FLAGS[l] ?? Object.entries(FLAGS).find(([k]) => l.includes(k))?.[1] ?? "";
 }
 
+/* ── Slug helpers (shared with /match/[slug]) ── */
+function toSlug(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+function matchSlugFor(home: string, away: string) {
+  return `${toSlug(home)}-vs-${toSlug(away)}`;
+}
+const SITE = typeof window !== "undefined"
+  ? window.location.origin
+  : (process.env.NEXT_PUBLIC_SITE_URL ?? "https://worldcupclutch.com");
+
 /* ─────────────────────── HELPERS ─────────────────────── */
 function fmtKickoff(utc: string) {
   return new Intl.DateTimeFormat("nl-NL", {
@@ -858,6 +869,50 @@ function ProfileScreen({
         </div>
 
         <div className="divider" />
+
+        {/* Invite friends section */}
+        <h3 className="section-title" style={{ marginBottom: "var(--space-3)" }}>Invite Friends 🔗</h3>
+        <div className="invite-box">
+          <p className="invite-desc">
+            Share your personal link — friends who join via your link automatically enter your private leaderboard.
+          </p>
+          <div className="invite-link-row">
+            <input
+              readOnly
+              className="invite-link-input"
+              value={`https://worldcupclutch.com?ref=${encodeURIComponent(profile.username ?? profile.id)}`}
+              aria-label="Your personal invite link"
+              onFocus={e => e.target.select()}
+            />
+            <button
+              className="invite-copy-btn"
+              onClick={async () => {
+                const link = `https://worldcupclutch.com?ref=${encodeURIComponent(profile.username ?? profile.id)}`;
+                try {
+                  if (navigator.share) {
+                    await navigator.share({
+                      title: "Join me on WorldCupClutch!",
+                      text: "⚽ I'm predicting every World Cup 2026 match — join me and let's see who's better!",
+                      url: link,
+                    });
+                  } else {
+                    await navigator.clipboard.writeText(link);
+                    setSaveMsg("✓ Link copied!");
+                    setTimeout(() => setSaveMsg(""), 2000);
+                  }
+                } catch { /* cancelled */ }
+              }}
+              aria-label="Copy invite link"
+            >
+              Share / Copy 🔗
+            </button>
+          </div>
+          <p className="invite-hint">
+            Friends who join via your link appear in your private leaderboard automatically.
+          </p>
+        </div>
+
+        <div className="divider" />
         <button
           className="btn-signout"
           onClick={() => { void signOut({ redirectTo: "/" }); }}
@@ -888,6 +943,30 @@ function MiniLeaderboard({
       .catch(() => setLoading(false));
   }, []);
 
+  // Hide the panel entirely while loading (no flash of empty header)
+  if (loading) return null;
+
+  // Empty state: show a teaser instead of broken-looking empty list
+  if (rows.length === 0) {
+    return (
+      <div className="mini-lb panel mini-lb-teaser" aria-label="Leaderboard teaser">
+        <div className="section-header">
+          <h2 className="section-title">🏅 Top Players</h2>
+        </div>
+        <div className="mini-lb-empty" role="status">
+          <span className="mini-lb-empty-icon" aria-hidden="true">🚀</span>
+          <div>
+            <p className="mini-lb-empty-title">Tournament kicks off Jun 11</p>
+            <p className="mini-lb-empty-sub">Make your picks now — be the first name on the leaderboard.</p>
+          </div>
+          <button className="mini-lb-cta" onClick={onViewAll}>
+            Start →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mini-lb panel" aria-label="Top 5 leaderboard">
       <div className="section-header">
@@ -897,26 +976,7 @@ function MiniLeaderboard({
         </button>
       </div>
       <div className="mini-lb-rows" role="list">
-        {loading
-          ? Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="lb-row">
-                <div className="skeleton" style={{ width: 24, height: 14, borderRadius: 4 }} />
-                <div className="skeleton" style={{ width: 28, height: 28, borderRadius: "50%" }} />
-                <div className="skeleton" style={{ flex: 1, height: 12 }} />
-                <div className="skeleton" style={{ width: 42, height: 14 }} />
-              </div>
-            ))
-          : rows.length === 0
-          ? (
-              <div className="mini-lb-empty" role="status">
-                <span className="mini-lb-empty-icon" aria-hidden="true">🎯</span>
-                <div>
-                  <p className="mini-lb-empty-title">No scores yet</p>
-                  <p className="mini-lb-empty-sub">Be the first on the leaderboard — make your picks now.</p>
-                </div>
-              </div>
-            )
-          : rows.map(u => (
+        {rows.map(u => (
               <article
                 key={u.userId}
                 className={`lb-row mini-lb-row${u.userId === currentUserId ? " lb-row-me" : ""}`}
@@ -939,6 +999,48 @@ function MiniLeaderboard({
               </article>
             ))}
       </div>
+    </div>
+  );
+}
+
+/* ─────────────────────── CONFETTI ─────────────────────── */
+const CONFETTI_COLORS = ["#0066ff","#ffc947","#ff6b35","#00e87a","#ff3355","#80b3ff","#33aaff","#fff"];
+const CONFETTI_PIECES = Array.from({ length: 36 }, (_, i) => ({
+  id: i,
+  color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+  x: 10 + (i / 36) * 80,           // left % 10–90
+  tx: ((i % 7) - 3) * 60,           // translateX px
+  ty: -(120 + (i * 37) % 160),       // translateY px (always upward)
+  rot: ((i * 97) % 720) - 360,       // rotation degrees
+  dur: 650 + (i * 53) % 500,         // ms
+  delay: (i * 29) % 300,             // ms
+  w: 6 + (i * 3) % 8,               // width px
+  h: 7 + (i * 5) % 10,              // height px
+  round: i % 3 === 0,               // circle vs rect
+}));
+
+function ConfettiBlast({ active }: { active: boolean }) {
+  if (!active) return null;
+  return (
+    <div className="confetti-root" aria-hidden="true">
+      {CONFETTI_PIECES.map(p => (
+        <div
+          key={p.id}
+          className="confetti-piece"
+          style={{
+            "--x": `${p.x}%`,
+            "--tx": `${p.tx}px`,
+            "--ty": `${p.ty}px`,
+            "--rot": `${p.rot}deg`,
+            "--dur": `${p.dur}ms`,
+            "--dl": `${p.delay}ms`,
+            "--c": p.color,
+            "--w": `${p.w}px`,
+            "--h": `${p.h}px`,
+            "--r": p.round ? "50%" : "2px",
+          } as React.CSSProperties}
+        />
+      ))}
     </div>
   );
 }
@@ -978,6 +1080,11 @@ export function HomeClient({
   const [liveViewers, setLiveViewers] = useState(() => 210 + Math.floor(Math.random() * 120));
   // Feature 14 — picks today trend
   const [picksToday, setPicksToday] = useState(() => 38 + Math.floor(Math.random() * 30));
+  // Issue 6 — challenge banner (shown when ?ref=X is in URL)
+  const [challengeBanner, setChallengeBanner] = useState<{ ref: string; pick?: string } | null>(null);
+  // Issue 7 — inline hero email capture
+  const [heroEmail, setHeroEmail] = useState("");
+  const [heroEmailStatus, setHeroEmailStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
   const predictPanelRef = useRef<HTMLElement>(null);
 
   // Feature 16 — theme (SSR-safe: always start "dark", read localStorage after mount)
@@ -990,8 +1097,14 @@ export function HomeClient({
   const [myPicks, setMyPicks] = useState<Record<string, string>>({});
   // Feature 20 — notification prompt
   const [notifPrompt, setNotifPrompt] = useState(false);
+  // Issue 19 — confetti burst on pick submission
+  const [showConfetti, setShowConfetti] = useState(false);
   // Auth: client-side session check via NextAuth /api/auth/session
   const [sessionUserId, setSessionUserId] = useState<string | undefined>(undefined);
+  // Issue 9 — real pick distribution (loaded after user submits)
+  const [pickDistribution, setPickDistribution] = useState<{ home: number; draw: number; away: number; total: number } | null>(null);
+  // Issue 12 — streak for logged-in user
+  const [userStreak, setUserStreak] = useState<number>(0);
 
   // Restore persisted preferences after mount (SSR-safe — no localStorage on server)
   useEffect(() => {
@@ -1003,13 +1116,39 @@ export function HomeClient({
       const snd = localStorage.getItem("wcc_sound");
       if (snd !== null) setSoundEnabled(snd !== "false");
     } catch { /* private browsing — ignore */ }
+
+    // Issue 6 — parse ?ref=X&pick=HOME challenge params from URL
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      const ref = sp.get("ref");
+      const pick = sp.get("pick") ?? undefined;
+      if (ref) setChallengeBanner({ ref, pick });
+
+      // ?predict=matchId — auto-navigate to referenced match
+      const predictId = sp.get("predict");
+      if (predictId) {
+        setTab("predict");
+        // activeIdx will be resolved once matches load
+        // store in sessionStorage so we can apply once matches arrive
+        sessionStorage.setItem("wcc_predict", predictId);
+      }
+    } catch { /* private browsing */ }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch NextAuth session on mount
+  // Fetch NextAuth session on mount, then fetch streak for logged-in users
   useEffect(() => {
     fetch("/api/auth/session")
       .then(r => r.json())
-      .then(d => { if (d?.user?.id) setSessionUserId(d.user.id); })
+      .then(d => {
+        if (d?.user?.id) {
+          setSessionUserId(d.user.id);
+          // Issue 12 — also load streak from profile
+          fetch("/api/profile/me")
+            .then(r => r.ok ? r.json() : null)
+            .then(p => { if (p?.streakCurrent > 0) setUserStreak(p.streakCurrent); })
+            .catch(() => { });
+        }
+      })
       .catch(() => { });
   }, []);
 
@@ -1075,12 +1214,25 @@ export function HomeClient({
     return () => clearInterval(t);
   }, [load, initialMatches.length]);
 
+  // Resolve ?predict=matchId once matches are available
+  useEffect(() => {
+    if (matches.length === 0) return;
+    try {
+      const id = sessionStorage.getItem("wcc_predict");
+      if (id) {
+        const idx = matches.findIndex(m => m.id === id);
+        if (idx >= 0) { setActiveIdx(idx); setTab("predict"); }
+        sessionStorage.removeItem("wcc_predict");
+      }
+    } catch { /* ignore */ }
+  }, [matches]);
+
   const activeMatch = matches[activeIdx] ?? null;
   const openWindow = useMemo(
     () => activeMatch?.windows?.find(w => w.status === "OPEN") ?? null,
     [activeMatch]
   );
-  useEffect(() => { setSubmitted(null); }, [activeIdx]);
+  useEffect(() => { setSubmitted(null); setPickDistribution(null); }, [activeIdx]);
 
   useEffect(() => {
     document.documentElement.classList.toggle("light", theme === "light");
@@ -1120,12 +1272,21 @@ export function HomeClient({
       setPicks(p => p + 1);
       setPickFlash(true);
       setTimeout(() => setPickFlash(false), 900);
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 1100);
       if (soundEnabled) playPickSound();
       if (activeMatch) setMyPicks(p => ({ ...p, [activeMatch.id]: choice }));
       if (!localStorage.getItem("wcc_notif") && typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
         setTimeout(() => setNotifPrompt(true), 1200);
       }
       setToast("✓ Pick locked in — share your prediction to challenge friends!");
+      // Issue 9 — fetch real pick distribution for this window
+      if (openWindow) {
+        fetch(`/api/picks/distribution?windowId=${openWindow.id}`)
+          .then(r => r.ok ? r.json() : null)
+          .then(d => { if (d) setPickDistribution(d); })
+          .catch(() => { });
+      }
     } catch {
       setToast("Submit failed. Try again.");
     } finally {
@@ -1227,6 +1388,10 @@ export function HomeClient({
           </nav>
 
           <div className="topbar-right">
+            <div className="topbar-live-counter" aria-live="polite">
+              <span className="topbar-live-dot" aria-hidden="true" />
+              {liveViewers.toLocaleString()}
+            </div>
             {liveN > 0 && (
               <div className="badge-live" role="status" aria-live="polite" aria-label={`${liveN} match${liveN > 1 ? "es" : ""} live`}>
                 <span className="live-dot" aria-hidden="true" />
@@ -1263,8 +1428,8 @@ export function HomeClient({
             <div className="notif-prompt" role="alert" aria-live="polite">
               <span className="notif-prompt-icon" aria-hidden="true">🔔</span>
               <div className="notif-prompt-body">
-                <strong>Get kickoff reminders</strong>
-                <span> — we&apos;ll notify you 30 min before each match.</span>
+                <strong>Get scored when your pick lands!</strong>
+                <span> — we&apos;ll notify you the moment your pick is scored.</span>
               </div>
               <button
                 className="notif-prompt-yes"
@@ -1283,6 +1448,34 @@ export function HomeClient({
                 className="notif-prompt-dismiss"
                 onClick={() => { setNotifPrompt(false); localStorage.setItem("wcc_notif", "1"); }}
                 aria-label="Dismiss notification prompt"
+              >✕</button>
+            </div>
+          )}
+
+          {/* ── Challenge banner (Issue 6) ── */}
+          {challengeBanner && (
+            <div className="challenge-banner" role="alert">
+              <span className="challenge-banner-icon" aria-hidden="true">🏆</span>
+              <div className="challenge-banner-body">
+                <strong>{challengeBanner.ref}</strong> challenged you!
+                {challengeBanner.pick && (
+                  <span className="challenge-banner-pick">
+                    {" "}Their pick:{" "}
+                    <strong>{challengeBanner.pick === "HOME" ? "Home Win" : challengeBanner.pick === "AWAY" ? "Away Win" : "Draw"}</strong>
+                    {" "}— can you beat them?
+                  </span>
+                )}
+              </div>
+              <button
+                className="challenge-banner-pick-btn"
+                onClick={() => { setTab("predict"); setChallengeBanner(null); }}
+              >
+                Make your pick →
+              </button>
+              <button
+                className="challenge-banner-dismiss"
+                onClick={() => setChallengeBanner(null)}
+                aria-label="Dismiss challenge"
               >✕</button>
             </div>
           )}
@@ -1308,6 +1501,50 @@ export function HomeClient({
             >
               Start Predicting →
             </button>
+
+            {/* Issue 7 — inline email capture */}
+            {heroEmailStatus !== "done" ? (
+              <form
+                className="hero-email-form"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!heroEmail || heroEmailStatus !== "idle") return;
+                  setHeroEmailStatus("sending");
+                  try {
+                    const res = await fetch("/api/email/subscribe", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ email: heroEmail }),
+                    });
+                    setHeroEmailStatus(res.ok ? "done" : "error");
+                  } catch { setHeroEmailStatus("error"); }
+                }}
+                aria-label="Subscribe for match reminders"
+              >
+                <input
+                  type="email"
+                  className="hero-email-input"
+                  placeholder="your@email.com"
+                  value={heroEmail}
+                  onChange={e => setHeroEmail(e.target.value)}
+                  required
+                  aria-label="Email address for match reminders"
+                />
+                <button
+                  type="submit"
+                  className="hero-email-btn"
+                  disabled={heroEmailStatus === "sending"}
+                >
+                  {heroEmailStatus === "sending" ? "..." : "Get reminders →"}
+                </button>
+              </form>
+            ) : (
+              <p className="hero-email-success">✅ You&apos;re in! We&apos;ll remind you before each match.</p>
+            )}
+            {heroEmailStatus === "error" && (
+              <p className="hero-email-error">Something went wrong — try again.</p>
+            )}
+
             <div className="hero-stats" role="list" aria-label="Tournament statistics">
               <div className="hero-stat" role="listitem">
                 <span className="hero-stat-v">104</span>
@@ -1375,7 +1612,10 @@ export function HomeClient({
                 <div className="panel">
                   <div className="section-header">
                     <h2 className="section-title">Live &amp; Upcoming</h2>
-                    <span className="section-action" aria-label="Auto-refreshes every 30 seconds">↻ 30s</span>
+                    <div className="live-now-pill" aria-live="polite" aria-label={`${liveViewers} people predicting right now`}>
+                      <span className="live-now-dot" aria-hidden="true" />
+                      {liveViewers.toLocaleString()} predicting
+                    </div>
                   </div>
 
                   <div className="match-feed" role="list" aria-label="Match list">
@@ -1452,6 +1692,15 @@ export function HomeClient({
                                 <span className="meta-text">{m.stadium?.city}</span>
                                 <span className="meta-text-right">{fmtKickoff(m.kickoffUtc)}</span>
                               </div>
+                              {/* Issue 5 — link to individual match page */}
+                              <a
+                                href={`/match/${matchSlugFor(m.homeSlot?.label ?? "", m.awaySlot?.label ?? "")}`}
+                                className="match-page-link"
+                                onClick={e => e.stopPropagation()}
+                                aria-label={`Match details: ${m.homeSlot?.label} vs ${m.awaySlot?.label}`}
+                              >
+                                Stats &amp; prediction →
+                              </a>
                             </button>
                           </article>
                         );
@@ -1503,6 +1752,16 @@ export function HomeClient({
 
               {/* RIGHT — predict + bracket */}
               <section aria-label="Prediction and bracket" ref={predictPanelRef}>
+                {/* Issue 12 — streak banner for signed-in users */}
+                {userStreak > 0 && (
+                  <div className="streak-banner" role="status" aria-label={`Current streak: ${userStreak} correct picks in a row`}>
+                    <span className="streak-banner-fire" aria-hidden="true">🔥</span>
+                    <span className="streak-banner-text">
+                      Your streak: <strong>{userStreak}</strong> correct in a row
+                    </span>
+                    <span className="streak-banner-cta">Keep it going!</span>
+                  </div>
+                )}
                 <div className="predict-panel">
                   <div className="section-header" style={{ marginBottom: "var(--space-3)" }}>
                     <h2 className="section-title">Make Your Pick</h2>
@@ -1575,24 +1834,37 @@ export function HomeClient({
                     />
                   </div>
 
-                  {/* Trending picks — only revealed after user picks */}
+                  {/* Trending picks — revealed after user submits a pick */}
                   {submitted && activeMatch && (() => {
-                    const p = (() => {
-                      const oh = activeMatch.oddsHomeWin, od = activeMatch.oddsDraw, oa = activeMatch.oddsAwayWin;
-                      if (oh && od && oa) {
-                        const ih = 1 / oh, id = 1 / od, ia = 1 / oa, t = ih + id + ia;
-                        return { h: Math.round(ih / t * 100), d: Math.round(id / t * 100), a: Math.round(ia / t * 100) };
-                      }
-                      const hash = (s: string) => s.split("").reduce((x, c) => x + c.charCodeAt(0), 17);
-                      const hl = activeMatch.homeSlot?.label ?? "", al = activeMatch.awaySlot?.label ?? "";
-                      const hv = ((hash(hl) % 35) + 28), av = ((hash(al) % 30) + 20), dv = Math.max(8, 100 - hv - av), t = hv + av + dv;
-                      return { h: Math.round(hv / t * 100), d: Math.round(dv / t * 100), a: Math.round(av / t * 100) };
-                    })();
+                    // Use real DB distribution when available, otherwise fall back to odds/strength estimates
+                    const useReal = pickDistribution !== null && pickDistribution.total > 0;
+                    const total = useReal ? pickDistribution!.total : 0;
+                    const p = useReal
+                      ? {
+                          h: total > 0 ? Math.round(pickDistribution!.home / total * 100) : 33,
+                          d: total > 0 ? Math.round(pickDistribution!.draw / total * 100) : 34,
+                          a: total > 0 ? Math.round(pickDistribution!.away / total * 100) : 33,
+                        }
+                      : (() => {
+                          const oh = activeMatch.oddsHomeWin, od = activeMatch.oddsDraw, oa = activeMatch.oddsAwayWin;
+                          if (oh && od && oa) {
+                            const ih = 1 / oh, id = 1 / od, ia = 1 / oa, t = ih + id + ia;
+                            return { h: Math.round(ih / t * 100), d: Math.round(id / t * 100), a: Math.round(ia / t * 100) };
+                          }
+                          const hash = (s: string) => s.split("").reduce((x, c) => x + c.charCodeAt(0), 17);
+                          const hl = activeMatch.homeSlot?.label ?? "", al = activeMatch.awaySlot?.label ?? "";
+                          const hv = ((hash(hl) % 35) + 28), av = ((hash(al) % 30) + 20), dv = Math.max(8, 100 - hv - av), t = hv + av + dv;
+                          return { h: Math.round(hv / t * 100), d: Math.round(dv / t * 100), a: Math.round(av / t * 100) };
+                        })();
                     return (
                       <div className="trending-picks" aria-label="Community pick distribution">
                         <div className="tp-header">
                           <span className="tp-title">Community picks</span>
-                          <span className="tp-sub">based on market odds</span>
+                          <span className="tp-sub">
+                            {useReal
+                              ? `${total.toLocaleString()} player${total !== 1 ? "s" : ""} picked this match`
+                              : "based on market odds"}
+                          </span>
                         </div>
                         {([
                           { label: `${flag(activeMatch.homeSlot?.label ?? "")} Home Win`, pct: p.h, choice: "HOME" },
@@ -1632,23 +1904,31 @@ export function HomeClient({
                     className={`share-btn ${submitted ? "share-btn-active" : "share-btn-inactive"}`}
                     onClick={async () => {
                       if (!submitted || !activeMatch) return;
+                      const home = activeMatch.homeSlot?.label ?? "Home";
+                      const away = activeMatch.awaySlot?.label ?? "Away";
+                      const slug = matchSlugFor(home, away);
                       const pickLabel =
-                        submitted === "HOME"
-                          ? `${activeMatch.homeSlot?.label} to win`
-                          : submitted === "AWAY"
-                          ? `${activeMatch.awaySlot?.label} to win`
-                          : "Draw";
-                      const url = typeof window !== "undefined" ? window.location.href : "https://worldcupclutch.com";
-                      const text = `⚽ I just picked ${pickLabel}!\n${activeMatch.homeSlot?.label} vs ${activeMatch.awaySlot?.label} · WC2026\nCan you beat my prediction? 🏆\n${url}`;
+                        submitted === "HOME" ? `${home} to win`
+                        : submitted === "AWAY" ? `${away} to win`
+                        : "a Draw";
+                      // Deep link → match page with pick + optional ref
+                      const ref = encodeURIComponent("me"); // swap for real username when auth works
+                      const deepUrl = `${SITE}/match/${slug}?ref=${ref}&pick=${submitted}`;
+                      const shareText = `⚽ I picked ${pickLabel} — ${home} vs ${away} · WC2026\nCan you beat me? 🏆\n${deepUrl}`;
                       try {
-                        await navigator.clipboard.writeText(text);
-                        setToast("🔗 Challenge link copied — paste it to a friend!");
+                        // Use Web Share API when available (mobile)
+                        if (navigator.share) {
+                          await navigator.share({ title: `${home} vs ${away} · My WC Pick`, text: shareText, url: deepUrl });
+                        } else {
+                          await navigator.clipboard.writeText(shareText);
+                          setToast("🔗 Challenge link copied — send it to a friend!");
+                        }
                       } catch {
-                        setToast(`🔗 ${text}`);
+                        setToast(`🔗 ${deepUrl}`);
                       }
                     }}
                     disabled={!submitted}
-                    aria-label="Copy challenge link to share your prediction"
+                    aria-label="Share your prediction and challenge a friend"
                   >
                     🔗 Challenge a Friend
                   </button>
@@ -1688,6 +1968,60 @@ export function HomeClient({
                     </div>
                   )}
                 </div>
+                {/* Tournament progress visualization — Issue 20 */}
+                <div className="panel tourney-progress-panel" style={{ marginTop: "var(--space-4)" }}>
+                  <div className="section-header">
+                    <h2 className="section-title">⚽ Tournament Progress</h2>
+                    <span className="section-action">WC2026</span>
+                  </div>
+                  <div className="tourney-stage-list" role="list">
+                    {ALL_STAGES.map(stage => {
+                      const meta = STAGE_META[stage];
+                      const data = bracketMap[stage];
+                      const played = data?.matches.filter((m: { status?: string }) => m.status === "FINISHED").length ?? 0;
+                      const scheduled = data?.matches.length ?? 0;
+                      const total = meta.total;
+                      const pct = Math.round(played / total * 100);
+                      const isEmpty = scheduled === 0;
+                      return (
+                        <div
+                          key={stage}
+                          className={`tourney-stage-row${isEmpty ? " tourney-stage-pending" : ""}`}
+                          role="listitem"
+                        >
+                          <span className="ts-icon" aria-hidden="true">{meta.icon}</span>
+                          <span className="ts-name">{stageLabel(stage)}</span>
+                          <div
+                            className="ts-bar"
+                            role="progressbar"
+                            aria-valuenow={played}
+                            aria-valuemax={total}
+                            aria-label={`${stageLabel(stage)}: ${played} of ${total} played`}
+                          >
+                            <div className="ts-bar-sched" style={{ width: `${Math.round(scheduled / total * 100)}%` }} />
+                            <div className="ts-bar-done" style={{ width: `${pct}%`, "--bc": meta.color } as React.CSSProperties} />
+                          </div>
+                          <span className="ts-stat">
+                            {isEmpty ? (
+                              <span className="ts-pending">Soon</span>
+                            ) : (
+                              <>{played}<span className="ts-total">/{total}</span></>
+                            )}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="tourney-overall">
+                    <div className="tourney-overall-bar" role="progressbar" aria-valuenow={finishedN} aria-valuemax={104} aria-label={`Overall: ${finishedN} of 104 matches played`}>
+                      <div className="tourney-overall-fill" style={{ width: `${Math.round(finishedN / 104 * 100)}%` }} />
+                    </div>
+                    <div className="tourney-overall-label">
+                      <span>{finishedN} of 104 matches played</span>
+                      <span className="tourney-overall-pct">{Math.round(finishedN / 104 * 100)}%</span>
+                    </div>
+                  </div>
+                </div>
               </section>
             </div>
 
@@ -1700,6 +2034,9 @@ export function HomeClient({
           )}
         </main>
       </div>
+
+      {/* Issue 19 — confetti burst */}
+      <ConfettiBlast active={showConfetti} />
 
       {/* Bracket drawer */}
       {bracketDrawer && (

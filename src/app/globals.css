@@ -1578,14 +1578,8 @@ body::before {
 }
 
 /* ═══════════════════════════════════════════════════════
-   MATCH CARD — FINISHED STATE (Feature 13)
+   MATCH CARD — FINISHED STATE → see Issue 11 block at end of file
 ═══════════════════════════════════════════════════════ */
-.match-card.is-finished {
-  opacity: 0.52;
-  filter: grayscale(0.35);
-}
-.match-card.is-finished:hover { opacity: 0.72; filter: none; }
-.match-card.is-finished.is-active { opacity: 1; filter: none; }
 
 /* ═══════════════════════════════════════════════════════
    PROFILE EMPTY STATE (Feature 10)
@@ -3156,4 +3150,531 @@ kbd {
 }
 @media (min-width: 1024px) {
   .loading-bottom-nav { display: none; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   MINI LEADERBOARD — teaser / empty state (Issue 4)
+═══════════════════════════════════════════════════════ */
+.mini-lb-teaser .mini-lb-empty {
+  flex-direction: column;
+  text-align: center;
+  padding: var(--space-5) var(--space-4);
+  gap: var(--space-3);
+}
+.mini-lb-teaser .mini-lb-empty-icon { font-size: 2rem; }
+.mini-lb-teaser .mini-lb-empty-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.mini-lb-teaser .mini-lb-empty-sub {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.mini-lb-cta {
+  padding: 8px 20px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(135deg, var(--brand-mid), var(--brand-light));
+  border: none;
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  margin-top: var(--space-2);
+}
+.mini-lb-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0,102,255,0.3);
+}
+
+/* ═══════════════════════════════════════════════════════
+   CHALLENGE BANNER (Issue 6)
+═══════════════════════════════════════════════════════ */
+.challenge-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: linear-gradient(135deg, rgba(255,201,71,0.10), rgba(255,160,0,0.06));
+  border: 1px solid rgba(255,201,71,0.35);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+  animation: confirmSlideIn 0.3s ease;
+}
+.challenge-banner-icon { font-size: 1.2rem; flex-shrink: 0; }
+.challenge-banner-body {
+  flex: 1;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  min-width: 0;
+}
+.challenge-banner-body strong { color: var(--text-primary); }
+.challenge-banner-pick { color: var(--text-secondary); }
+.challenge-banner-pick strong { color: var(--accent-gold); }
+.challenge-banner-pick-btn {
+  padding: 7px 16px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-gold);
+  border: none;
+  color: #0a1a2e;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+.challenge-banner-pick-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(255,201,71,0.3); }
+.challenge-banner-dismiss {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+.challenge-banner-dismiss:hover { background: rgba(255,255,255,0.07); color: var(--text-primary); }
+
+/* ═══════════════════════════════════════════════════════
+   HERO EMAIL CAPTURE (Issue 7)
+═══════════════════════════════════════════════════════ */
+.hero-email-form {
+  display: flex;
+  gap: var(--space-2);
+  width: 100%;
+  max-width: 420px;
+  margin-bottom: var(--space-4);
+}
+.hero-email-input {
+  flex: 1;
+  padding: 11px 16px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-pill);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  outline: none;
+  transition: border-color 0.18s ease;
+  min-width: 0;
+}
+.hero-email-input:focus { border-color: var(--border-brand); background: rgba(255,255,255,0.07); }
+.hero-email-input::placeholder { color: var(--text-tertiary); }
+.hero-email-btn {
+  padding: 11px 20px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(135deg, var(--brand-mid), var(--brand-light));
+  border: none;
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.18s ease;
+}
+.hero-email-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0,102,255,0.3);
+}
+.hero-email-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.hero-email-success {
+  font-size: 0.85rem;
+  color: var(--accent-green);
+  font-weight: 600;
+  margin-bottom: var(--space-4);
+}
+.hero-email-error {
+  font-size: 0.78rem;
+  color: #ff6b6b;
+  margin-bottom: var(--space-3);
+}
+@media (max-width: 767px) {
+  .hero-email-form { flex-direction: column; max-width: 100%; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   MATCH CARD — PAGE LINK (Issue 5)
+═══════════════════════════════════════════════════════ */
+.match-page-link {
+  display: block;
+  padding: 3px 0 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-decoration: none;
+  letter-spacing: 0.02em;
+  transition: color 0.15s ease;
+  text-align: right;
+}
+.match-page-link:hover { color: var(--brand-light); }
+.match-card.is-active .match-page-link { color: rgba(0,102,255,0.5); }
+.match-card.is-active .match-page-link:hover { color: var(--brand-light); }
+
+/* ═══════════════════════════════════════════════════════
+   ISSUE 9 — REAL PICK DISTRIBUTION indicator
+═══════════════════════════════════════════════════════ */
+/* When real data arrives the sub-label transitions */
+.tp-sub {
+  transition: color 0.4s ease;
+}
+/* Real-data variant gets a green tint */
+.trending-picks[data-real="true"] .tp-sub {
+  color: var(--accent-green);
+}
+
+/* ═══════════════════════════════════════════════════════
+   ISSUE 10 — ENHANCED PRE-MATCH HYPE CARD
+═══════════════════════════════════════════════════════ */
+/* Existing .match-card.is-hype has orange border — add closing-urgency pulse */
+.match-card.is-hype::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255,107,53,0.06), transparent);
+  pointer-events: none;
+}
+/* Countdown gets highlighted in orange for hype matches */
+.match-card.is-hype .countdown-tag {
+  color: #ff9055;
+  font-weight: 700;
+}
+
+/* ═══════════════════════════════════════════════════════
+   ISSUE 11 — FINISHED MATCH CARD DIMMING
+═══════════════════════════════════════════════════════ */
+.match-card.is-finished {
+  opacity: 0.52;
+  filter: saturate(0.35) brightness(0.85);
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+.match-card.is-finished:hover,
+.match-card.is-finished:focus-visible {
+  opacity: 0.75;
+  filter: saturate(0.55) brightness(0.95);
+}
+/* Keep "is-active" overriding the dim so selected finished match is legible */
+.match-card.is-finished.is-active {
+  opacity: 0.9;
+  filter: saturate(0.7) brightness(1);
+}
+/* Strike-through on finished score label */
+.match-card.is-finished .score-box {
+  font-style: italic;
+}
+
+/* ═══════════════════════════════════════════════════════
+   ISSUE 12 — STREAK BANNER (above predict panel)
+═══════════════════════════════════════════════════════ */
+.streak-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px 16px;
+  background: linear-gradient(135deg, rgba(255,107,53,0.12), rgba(255,160,0,0.08));
+  border: 1px solid rgba(255,140,60,0.30);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-3);
+  animation: confirmSlideIn 0.35s ease;
+}
+@keyframes hypePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
+}
+.streak-banner-fire {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+  animation: hypePulse 2s ease-in-out infinite;
+}
+.streak-banner-text {
+  flex: 1;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.streak-banner-text strong {
+  color: #ff9055;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  margin: 0 2px;
+}
+.streak-banner-cta {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #ff9055;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+@media (max-width: 400px) {
+  .streak-banner-cta { display: none; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   ISSUE 15 — PROMINENT LIVE COUNTER
+═══════════════════════════════════════════════════════ */
+.live-now-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: rgba(255,51,85,0.10);
+  border: 1px solid rgba(255,51,85,0.30);
+  border-radius: var(--radius-pill);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #ff6b80;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.live-now-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #ff3355;
+  animation: liveDotPulse 1.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes liveDotPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.75); }
+}
+.topbar-live-counter {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #ff6b80;
+  letter-spacing: 0.01em;
+}
+.topbar-live-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #ff3355;
+  animation: liveDotPulse 1.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@media (max-width: 480px) {
+  .topbar-live-counter { display: none; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   ISSUE 16 — FRIEND INVITE SECTION
+═══════════════════════════════════════════════════════ */
+.invite-box {
+  background: rgba(0,102,255,0.06);
+  border: 1px solid rgba(0,102,255,0.18);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+.invite-desc {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: var(--space-3);
+}
+.invite-link-row {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.invite-link-input {
+  flex: 1;
+  padding: 9px 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  outline: none;
+  min-width: 0;
+  cursor: text;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.invite-link-input:focus {
+  border-color: var(--border-brand);
+  color: var(--text-primary);
+}
+.invite-copy-btn {
+  padding: 9px 16px;
+  background: linear-gradient(135deg, var(--brand-mid), var(--brand-light));
+  border: none;
+  border-radius: var(--radius-md);
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+.invite-copy-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0,102,255,0.3);
+}
+.invite-hint {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* ═══════════════════════════════════════════════════════
+   ISSUE 19 — CONFETTI ANIMATION
+═══════════════════════════════════════════════════════ */
+.confetti-root {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+  z-index: 9999;
+  overflow: hidden;
+}
+.confetti-piece {
+  position: absolute;
+  width: var(--w, 8px);
+  height: var(--h, 10px);
+  background: var(--c, #0066ff);
+  border-radius: var(--r, 2px);
+  top: 55%;
+  left: var(--x, 50%);
+  animation: confettiBurst var(--dur, 900ms) cubic-bezier(0.25,0.46,0.45,0.94) var(--dl, 0ms) both;
+}
+@keyframes confettiBurst {
+  0% {
+    transform: translateX(0) translateY(0) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  60% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateX(var(--tx, 0px)) translateY(var(--ty, -180px)) rotate(var(--rot, 360deg)) scale(0.3);
+    opacity: 0;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   ISSUE 20 — TOURNAMENT PROGRESS VISUALIZATION
+═══════════════════════════════════════════════════════ */
+.tourney-progress-panel {}
+.tourney-stage-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.tourney-stage-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.tourney-stage-pending {
+  opacity: 0.45;
+}
+.ts-icon {
+  font-size: 0.9rem;
+  flex-shrink: 0;
+  width: 22px;
+  text-align: center;
+}
+.ts-name {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  width: 90px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ts-bar {
+  flex: 1;
+  height: 6px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+.ts-bar-sched {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+.ts-bar-done {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  background: var(--bc, #4d94ff);
+  border-radius: 3px;
+  transition: width 0.8s ease;
+}
+.ts-stat {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  flex-shrink: 0;
+  width: 32px;
+  text-align: right;
+  font-family: var(--font-display);
+}
+.ts-total {
+  color: var(--text-tertiary);
+  font-family: var(--font-body);
+  font-weight: 400;
+}
+.ts-pending {
+  color: var(--text-tertiary);
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 0.65rem;
+}
+.tourney-overall {
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-3);
+}
+.tourney-overall-bar {
+  height: 8px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: var(--space-2);
+}
+.tourney-overall-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--brand-mid), var(--brand-light));
+  border-radius: 4px;
+  transition: width 1s ease;
+  min-width: 4px;
+}
+.tourney-overall-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+}
+.tourney-overall-pct {
+  font-weight: 700;
+  color: var(--brand-light);
 }

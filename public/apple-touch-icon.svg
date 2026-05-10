@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" width="180" height="180">
+  <rect width="180" height="180" rx="36" fill="#03080f"/>
+  <!-- Ball -->
+  <circle cx="90" cy="90" r="62" fill="#ffffff" stroke="#0044cc" stroke-width="4"/>
+  <!-- Pentagon patches -->
+  <polygon points="90,32 110,62 90,72 70,62" fill="#03080f"/>
+  <polygon points="138,68 145,98 118,104 110,74" fill="#03080f"/>
+  <polygon points="126,138 96,146 90,118 112,104" fill="#03080f"/>
+  <polygon points="54,138 62,104 90,118 84,146" fill="#03080f"/>
+  <polygon points="42,68 70,62 78,92 52,102" fill="#03080f"/>
+</svg>

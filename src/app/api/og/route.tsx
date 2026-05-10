@@ -3,6 +3,26 @@ import type { NextRequest } from "next/server";
 
 export const runtime = "edge";
 
+const OG_FLAGS: Record<string, string> = {
+  mexico:"🇲🇽", canada:"🇨🇦", usa:"🇺🇸", "united states":"🇺🇸", brazil:"🇧🇷",
+  argentina:"🇦🇷", france:"🇫🇷", germany:"🇩🇪", spain:"🇪🇸", england:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+  portugal:"🇵🇹", netherlands:"🇳🇱", belgium:"🇧🇪", japan:"🇯🇵", australia:"🇦🇺",
+  morocco:"🇲🇦", senegal:"🇸🇳", ecuador:"🇪🇨", uruguay:"🇺🇾", colombia:"🇨🇴",
+  norway:"🇳🇴", sweden:"🇸🇪", croatia:"🇭🇷", ghana:"🇬🇭", switzerland:"🇨🇭",
+  scotland:"🏴󠁧󠁢󠁳󠁣󠁴󠁿", turkey:"🇹🇷", turkiye:"🇹🇷", qatar:"🇶🇦",
+  "south africa":"🇿🇦", "korea republic":"🇰🇷", "ir iran":"🇮🇷",
+  "cote d'ivoire":"🇨🇮", "cabo verde":"🇨🇻", "saudi arabia":"🇸🇦",
+  "new zealand":"🇳🇿", "bosnia and herzegovina":"🇧🇦", czechia:"🇨🇿",
+  "congo dr":"🇨🇩", panama:"🇵🇦", algeria:"🇩🇿", austria:"🇦🇹",
+  jordan:"🇯🇴", iraq:"🇮🇶", uzbekistan:"🇺🇿", curacao:"🇨🇼",
+  haiti:"🇭🇹", tunisia:"🇹🇳", egypt:"🇪🇬", iran:"🇮🇷", paraguay:"🇵🇾",
+  chile:"🇨🇱", peru:"🇵🇪", venezuela:"🇻🇪", nigeria:"🇳🇬",
+};
+function getFlag(name: string): string {
+  const l = name.toLowerCase();
+  return OG_FLAGS[l] ?? Object.entries(OG_FLAGS).find(([k]) => l.includes(k))?.[1] ?? "⚽";
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
 
@@ -57,7 +77,7 @@ export async function GET(req: NextRequest) {
         <div style={{display:"flex",flex:1,alignItems:"center",justifyContent:"center",padding:"0 56px",gap:0}}>
           {/* Home */}
           <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:16}}>
-            <div style={{fontSize:72}}>{home.toLowerCase().includes("mexico")?"🇲🇽":home.toLowerCase().includes("brazil")?"🇧🇷":home.toLowerCase().includes("france")?"🇫🇷":home.toLowerCase().includes("germany")?"🇩🇪":home.toLowerCase().includes("argentina")?"🇦🇷":home.toLowerCase().includes("england")?"🏴󠁧󠁢󠁥󠁮󠁧󠁿":"⚽"}</div>
+            <div style={{fontSize:72}}>{getFlag(home)}</div>
             <div style={{fontSize:40,fontWeight:900,color:"#fff",textAlign:"center",lineHeight:1.1,letterSpacing:"-0.01em"}}>{home}</div>
           </div>
 
@@ -96,7 +116,7 @@ export async function GET(req: NextRequest) {
 
           {/* Away */}
           <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:16}}>
-            <div style={{fontSize:72}}>{away.toLowerCase().includes("spain")?"🇪🇸":away.toLowerCase().includes("portugal")?"🇵🇹":away.toLowerCase().includes("netherlands")?"🇳🇱":away.toLowerCase().includes("argentina")?"🇦🇷":away.toLowerCase().includes("usa")?"🇺🇸":"⚽"}</div>
+            <div style={{fontSize:72}}>{getFlag(away)}</div>
             <div style={{fontSize:40,fontWeight:900,color:"#fff",textAlign:"center",lineHeight:1.1,letterSpacing:"-0.01em"}}>{away}</div>
           </div>
         </div>
