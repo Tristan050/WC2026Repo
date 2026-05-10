@@ -17,11 +17,17 @@ export async function GET(req: Request) {
       take:    limit,
     });
 
-    // If no snapshots yet, fall back to live user rankings
+    // If no snapshots yet, fall back to live user rankings.
+    // Show everyone who has made at least one pick — not just users with points > 0,
+    // because picks are submitted before matches finish and scoring runs.
     if (snapshots.length === 0) {
       const users = await prisma.user.findMany({
-        where:   { points: { gt: 0 } },
-        orderBy: { points: "desc" },
+        where:   { picks: { some: {} } },   // at least 1 pick submitted
+        orderBy: [
+          { points: "desc" },
+          { streakCurrent: "desc" },
+          { createdAt: "asc" },             // tiebreak: earliest signup first
+        ],
         take:    limit,
         select: {
           id:            true,
