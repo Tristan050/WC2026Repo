@@ -869,6 +869,50 @@ function ProfileScreen({
         </div>
 
         <div className="divider" />
+
+        {/* Invite friends section */}
+        <h3 className="section-title" style={{ marginBottom: "var(--space-3)" }}>Invite Friends 🔗</h3>
+        <div className="invite-box">
+          <p className="invite-desc">
+            Share your personal link — friends who join via your link automatically enter your private leaderboard.
+          </p>
+          <div className="invite-link-row">
+            <input
+              readOnly
+              className="invite-link-input"
+              value={`https://worldcupclutch.com?ref=${encodeURIComponent(profile.username ?? profile.id)}`}
+              aria-label="Your personal invite link"
+              onFocus={e => e.target.select()}
+            />
+            <button
+              className="invite-copy-btn"
+              onClick={async () => {
+                const link = `https://worldcupclutch.com?ref=${encodeURIComponent(profile.username ?? profile.id)}`;
+                try {
+                  if (navigator.share) {
+                    await navigator.share({
+                      title: "Join me on WorldCupClutch!",
+                      text: "⚽ I'm predicting every World Cup 2026 match — join me and let's see who's better!",
+                      url: link,
+                    });
+                  } else {
+                    await navigator.clipboard.writeText(link);
+                    setSaveMsg("✓ Link copied!");
+                    setTimeout(() => setSaveMsg(""), 2000);
+                  }
+                } catch { /* cancelled */ }
+              }}
+              aria-label="Copy invite link"
+            >
+              Share / Copy 🔗
+            </button>
+          </div>
+          <p className="invite-hint">
+            Friends who join via your link appear in your private leaderboard automatically.
+          </p>
+        </div>
+
+        <div className="divider" />
         <button
           className="btn-signout"
           onClick={() => { void signOut({ redirectTo: "/" }); }}
@@ -959,6 +1003,48 @@ function MiniLeaderboard({
   );
 }
 
+/* ─────────────────────── CONFETTI ─────────────────────── */
+const CONFETTI_COLORS = ["#0066ff","#ffc947","#ff6b35","#00e87a","#ff3355","#80b3ff","#33aaff","#fff"];
+const CONFETTI_PIECES = Array.from({ length: 36 }, (_, i) => ({
+  id: i,
+  color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+  x: 10 + (i / 36) * 80,           // left % 10–90
+  tx: ((i % 7) - 3) * 60,           // translateX px
+  ty: -(120 + (i * 37) % 160),       // translateY px (always upward)
+  rot: ((i * 97) % 720) - 360,       // rotation degrees
+  dur: 650 + (i * 53) % 500,         // ms
+  delay: (i * 29) % 300,             // ms
+  w: 6 + (i * 3) % 8,               // width px
+  h: 7 + (i * 5) % 10,              // height px
+  round: i % 3 === 0,               // circle vs rect
+}));
+
+function ConfettiBlast({ active }: { active: boolean }) {
+  if (!active) return null;
+  return (
+    <div className="confetti-root" aria-hidden="true">
+      {CONFETTI_PIECES.map(p => (
+        <div
+          key={p.id}
+          className="confetti-piece"
+          style={{
+            "--x": `${p.x}%`,
+            "--tx": `${p.tx}px`,
+            "--ty": `${p.ty}px`,
+            "--rot": `${p.rot}deg`,
+            "--dur": `${p.dur}ms`,
+            "--dl": `${p.delay}ms`,
+            "--c": p.color,
+            "--w": `${p.w}px`,
+            "--h": `${p.h}px`,
+            "--r": p.round ? "50%" : "2px",
+          } as React.CSSProperties}
+        />
+      ))}
+    </div>
+  );
+}
+
 /* ─────────────────────── NAV CONFIG ─────────────────────── */
 const NAV: { id: Tab; icon: string; label: string }[] = [
   { id: "matches", icon: "⚽", label: "Matches" },
@@ -1011,6 +1097,8 @@ export function HomeClient({
   const [myPicks, setMyPicks] = useState<Record<string, string>>({});
   // Feature 20 — notification prompt
   const [notifPrompt, setNotifPrompt] = useState(false);
+  // Issue 19 — confetti burst on pick submission
+  const [showConfetti, setShowConfetti] = useState(false);
   // Auth: client-side session check via NextAuth /api/auth/session
   const [sessionUserId, setSessionUserId] = useState<string | undefined>(undefined);
   // Issue 9 — real pick distribution (loaded after user submits)
@@ -1184,6 +1272,8 @@ export function HomeClient({
       setPicks(p => p + 1);
       setPickFlash(true);
       setTimeout(() => setPickFlash(false), 900);
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 1100);
       if (soundEnabled) playPickSound();
       if (activeMatch) setMyPicks(p => ({ ...p, [activeMatch.id]: choice }));
       if (!localStorage.getItem("wcc_notif") && typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
@@ -1298,6 +1388,10 @@ export function HomeClient({
           </nav>
 
           <div className="topbar-right">
+            <div className="topbar-live-counter" aria-live="polite">
+              <span className="topbar-live-dot" aria-hidden="true" />
+              {liveViewers.toLocaleString()}
+            </div>
             {liveN > 0 && (
               <div className="badge-live" role="status" aria-live="polite" aria-label={`${liveN} match${liveN > 1 ? "es" : ""} live`}>
                 <span className="live-dot" aria-hidden="true" />
@@ -1334,8 +1428,8 @@ export function HomeClient({
             <div className="notif-prompt" role="alert" aria-live="polite">
               <span className="notif-prompt-icon" aria-hidden="true">🔔</span>
               <div className="notif-prompt-body">
-                <strong>Get kickoff reminders</strong>
-                <span> — we&apos;ll notify you 30 min before each match.</span>
+                <strong>Get scored when your pick lands!</strong>
+                <span> — we&apos;ll notify you the moment your pick is scored.</span>
               </div>
               <button
                 className="notif-prompt-yes"
@@ -1518,7 +1612,10 @@ export function HomeClient({
                 <div className="panel">
                   <div className="section-header">
                     <h2 className="section-title">Live &amp; Upcoming</h2>
-                    <span className="section-action" aria-label="Auto-refreshes every 30 seconds">↻ 30s</span>
+                    <div className="live-now-pill" aria-live="polite" aria-label={`${liveViewers} people predicting right now`}>
+                      <span className="live-now-dot" aria-hidden="true" />
+                      {liveViewers.toLocaleString()} predicting
+                    </div>
                   </div>
 
                   <div className="match-feed" role="list" aria-label="Match list">
@@ -1871,6 +1968,60 @@ export function HomeClient({
                     </div>
                   )}
                 </div>
+                {/* Tournament progress visualization — Issue 20 */}
+                <div className="panel tourney-progress-panel" style={{ marginTop: "var(--space-4)" }}>
+                  <div className="section-header">
+                    <h2 className="section-title">⚽ Tournament Progress</h2>
+                    <span className="section-action">WC2026</span>
+                  </div>
+                  <div className="tourney-stage-list" role="list">
+                    {ALL_STAGES.map(stage => {
+                      const meta = STAGE_META[stage];
+                      const data = bracketMap[stage];
+                      const played = data?.matches.filter((m: { status?: string }) => m.status === "FINISHED").length ?? 0;
+                      const scheduled = data?.matches.length ?? 0;
+                      const total = meta.total;
+                      const pct = Math.round(played / total * 100);
+                      const isEmpty = scheduled === 0;
+                      return (
+                        <div
+                          key={stage}
+                          className={`tourney-stage-row${isEmpty ? " tourney-stage-pending" : ""}`}
+                          role="listitem"
+                        >
+                          <span className="ts-icon" aria-hidden="true">{meta.icon}</span>
+                          <span className="ts-name">{stageLabel(stage)}</span>
+                          <div
+                            className="ts-bar"
+                            role="progressbar"
+                            aria-valuenow={played}
+                            aria-valuemax={total}
+                            aria-label={`${stageLabel(stage)}: ${played} of ${total} played`}
+                          >
+                            <div className="ts-bar-sched" style={{ width: `${Math.round(scheduled / total * 100)}%` }} />
+                            <div className="ts-bar-done" style={{ width: `${pct}%`, "--bc": meta.color } as React.CSSProperties} />
+                          </div>
+                          <span className="ts-stat">
+                            {isEmpty ? (
+                              <span className="ts-pending">Soon</span>
+                            ) : (
+                              <>{played}<span className="ts-total">/{total}</span></>
+                            )}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="tourney-overall">
+                    <div className="tourney-overall-bar" role="progressbar" aria-valuenow={finishedN} aria-valuemax={104} aria-label={`Overall: ${finishedN} of 104 matches played`}>
+                      <div className="tourney-overall-fill" style={{ width: `${Math.round(finishedN / 104 * 100)}%` }} />
+                    </div>
+                    <div className="tourney-overall-label">
+                      <span>{finishedN} of 104 matches played</span>
+                      <span className="tourney-overall-pct">{Math.round(finishedN / 104 * 100)}%</span>
+                    </div>
+                  </div>
+                </div>
               </section>
             </div>
 
@@ -1883,6 +2034,9 @@ export function HomeClient({
           )}
         </main>
       </div>
+
+      {/* Issue 19 — confetti burst */}
+      <ConfettiBlast active={showConfetti} />
 
       {/* Bracket drawer */}
       {bracketDrawer && (

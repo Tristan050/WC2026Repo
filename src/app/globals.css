@@ -3423,3 +3423,258 @@ kbd {
 @media (max-width: 400px) {
   .streak-banner-cta { display: none; }
 }
+
+/* ═══════════════════════════════════════════════════════
+   ISSUE 15 — PROMINENT LIVE COUNTER
+═══════════════════════════════════════════════════════ */
+.live-now-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: rgba(255,51,85,0.10);
+  border: 1px solid rgba(255,51,85,0.30);
+  border-radius: var(--radius-pill);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #ff6b80;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.live-now-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #ff3355;
+  animation: liveDotPulse 1.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes liveDotPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.75); }
+}
+.topbar-live-counter {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #ff6b80;
+  letter-spacing: 0.01em;
+}
+.topbar-live-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #ff3355;
+  animation: liveDotPulse 1.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@media (max-width: 480px) {
+  .topbar-live-counter { display: none; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   ISSUE 16 — FRIEND INVITE SECTION
+═══════════════════════════════════════════════════════ */
+.invite-box {
+  background: rgba(0,102,255,0.06);
+  border: 1px solid rgba(0,102,255,0.18);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+.invite-desc {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: var(--space-3);
+}
+.invite-link-row {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.invite-link-input {
+  flex: 1;
+  padding: 9px 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  outline: none;
+  min-width: 0;
+  cursor: text;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.invite-link-input:focus {
+  border-color: var(--border-brand);
+  color: var(--text-primary);
+}
+.invite-copy-btn {
+  padding: 9px 16px;
+  background: linear-gradient(135deg, var(--brand-mid), var(--brand-light));
+  border: none;
+  border-radius: var(--radius-md);
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+.invite-copy-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0,102,255,0.3);
+}
+.invite-hint {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* ═══════════════════════════════════════════════════════
+   ISSUE 19 — CONFETTI ANIMATION
+═══════════════════════════════════════════════════════ */
+.confetti-root {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+  z-index: 9999;
+  overflow: hidden;
+}
+.confetti-piece {
+  position: absolute;
+  width: var(--w, 8px);
+  height: var(--h, 10px);
+  background: var(--c, #0066ff);
+  border-radius: var(--r, 2px);
+  top: 55%;
+  left: var(--x, 50%);
+  animation: confettiBurst var(--dur, 900ms) cubic-bezier(0.25,0.46,0.45,0.94) var(--dl, 0ms) both;
+}
+@keyframes confettiBurst {
+  0% {
+    transform: translateX(0) translateY(0) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  60% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateX(var(--tx, 0px)) translateY(var(--ty, -180px)) rotate(var(--rot, 360deg)) scale(0.3);
+    opacity: 0;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   ISSUE 20 — TOURNAMENT PROGRESS VISUALIZATION
+═══════════════════════════════════════════════════════ */
+.tourney-progress-panel {}
+.tourney-stage-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.tourney-stage-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.tourney-stage-pending {
+  opacity: 0.45;
+}
+.ts-icon {
+  font-size: 0.9rem;
+  flex-shrink: 0;
+  width: 22px;
+  text-align: center;
+}
+.ts-name {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  width: 90px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ts-bar {
+  flex: 1;
+  height: 6px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+.ts-bar-sched {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+.ts-bar-done {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  background: var(--bc, #4d94ff);
+  border-radius: 3px;
+  transition: width 0.8s ease;
+}
+.ts-stat {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  flex-shrink: 0;
+  width: 32px;
+  text-align: right;
+  font-family: var(--font-display);
+}
+.ts-total {
+  color: var(--text-tertiary);
+  font-family: var(--font-body);
+  font-weight: 400;
+}
+.ts-pending {
+  color: var(--text-tertiary);
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 0.65rem;
+}
+.tourney-overall {
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-3);
+}
+.tourney-overall-bar {
+  height: 8px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: var(--space-2);
+}
+.tourney-overall-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--brand-mid), var(--brand-light));
+  border-radius: 4px;
+  transition: width 1s ease;
+  min-width: 4px;
+}
+.tourney-overall-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+}
+.tourney-overall-pct {
+  font-weight: 700;
+  color: var(--brand-light);
+}
