@@ -22,7 +22,7 @@ function useCountdown() {
   };
 }
 
-function CountdownBanner() {
+function CountdownBanner({ onPickNow }: { onPickNow?: () => void }) {
   const t = useCountdown();
   const p = (n: number) => String(n).padStart(2, "0");
 
@@ -51,6 +51,11 @@ function CountdownBanner() {
         <div className="cd-unit"><span className="cd-n cd-n-sec">{p(t.secs)}</span><span className="cd-l">SEC</span></div>
       </div>
       <span className="cd-match">🇲🇽 Mexico vs South Africa 🇿🇦 · Azteca</span>
+      {onPickNow && (
+        <button className="cd-cta-btn" onClick={onPickNow} aria-label="Pre-register your picks">
+          Pre-register picks →
+        </button>
+      )}
     </div>
   );
 }
@@ -894,6 +899,9 @@ export function HomeClient({
   const [picks, setPicks] = useState(312);
   const [tab, setTab] = useState<Tab>("matches");
   const [bracketDrawer, setBracketDrawer] = useState<{ stage: string; matches: BracketStage["matches"] } | null>(null);
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
+  const [emailValue, setEmailValue] = useState("");
+  const [emailStatus, setEmailStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
   const predictPanelRef = useRef<HTMLElement>(null);
 
   // Feature 16 — theme
@@ -926,6 +934,22 @@ export function HomeClient({
   const handleSignIn = () => {
     // Redirect to Google OAuth via NextAuth
     void signIn("google", { redirectTo: window.location.href });
+  };
+
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!emailValue || emailStatus !== "idle") return;
+    setEmailStatus("sending");
+    try {
+      const res = await fetch("/api/email/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailValue }),
+      });
+      setEmailStatus(res.ok ? "done" : "error");
+    } catch {
+      setEmailStatus("error");
+    }
   };
 
   const load = useCallback(async (isInitial = false) => {
@@ -1059,7 +1083,7 @@ export function HomeClient({
         </header>
 
         {/* ── Countdown banner ── */}
-        <CountdownBanner />
+        <CountdownBanner onPickNow={() => { setTab("predict"); }} />
 
         <main className="page" id="main-content">
 
@@ -1105,10 +1129,11 @@ export function HomeClient({
             <div className="hero-eyebrow" aria-label="FIFA World Cup 2026 — Official Predictor">
               ⚽ FIFA WORLD CUP 2026 · OFFICIAL PREDICTOR
             </div>
-            <h1 id="hero-heading">
+            <h1 id="hero-heading">World Cup 2026 Predictions &amp; Match Picks</h1>
+            <h2 className="hero-h2">
               PICK THE WINNERS.
               <span className="highlight">BEAT YOUR FRIENDS.</span>
-            </h1>
+            </h2>
             <p className="hero-sub">
               The ultimate World Cup prediction game. Predict every match, build your streak,
               and climb the global leaderboard across all 104 games.
@@ -1501,6 +1526,83 @@ export function HomeClient({
                 );
               })}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── How it works floating button (Feature 8) ── */}
+      <button
+        className="hiw-fab"
+        onClick={() => setShowHowItWorks(true)}
+        aria-label="How it works"
+        title="How it works"
+      >
+        ?
+      </button>
+
+      {/* ── How it works modal ── */}
+      {showHowItWorks && (
+        <div
+          className="hiw-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="How WorldCupClutch works"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowHowItWorks(false); }}
+        >
+          <div className="hiw-modal">
+            <button className="hiw-close" onClick={() => setShowHowItWorks(false)} aria-label="Close">✕</button>
+            <h2 className="hiw-title">How it works</h2>
+            <p className="hiw-subtitle">World Cup 2026 pick&apos;em in 3 simple steps</p>
+            <div className="hiw-steps">
+              {([
+                { n: "01", icon: "⚽", title: "Pick a match", desc: "Select any upcoming match from the feed. Predict Home win, Draw, or Away win." },
+                { n: "02", icon: "🏆", title: "Earn points", desc: "Correct picks earn +3 pts. Streak bonuses multiply your score." },
+                { n: "03", icon: "🌍", title: "Climb the table", desc: "Compete on the global leaderboard across all 104 World Cup matches." },
+              ] as const).map(s => (
+                <div key={s.n} className="hiw-step">
+                  <div className="hiw-step-icon">{s.icon}</div>
+                  <div className="hiw-step-body">
+                    <span className="hiw-step-n">{s.n}</span>
+                    <span className="hiw-step-title">{s.title}</span>
+                    <p className="hiw-step-desc">{s.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Email capture (Feature 9) */}
+            <div className="hiw-email-section">
+              <p className="hiw-email-label">📧 Get match reminders &amp; score updates</p>
+              {emailStatus === "done" ? (
+                <p className="hiw-email-success">✅ You&apos;re on the list! We&apos;ll remind you before each match.</p>
+              ) : (
+                <form className="hiw-email-form" onSubmit={handleEmailSubmit}>
+                  <input
+                    type="email"
+                    className="hiw-email-input"
+                    placeholder="your@email.com"
+                    value={emailValue}
+                    onChange={(e) => setEmailValue(e.target.value)}
+                    required
+                    aria-label="Email address"
+                  />
+                  <button
+                    type="submit"
+                    className="hiw-email-btn"
+                    disabled={emailStatus === "sending"}
+                  >
+                    {emailStatus === "sending" ? "..." : "Remind me"}
+                  </button>
+                </form>
+              )}
+              {emailStatus === "error" && (
+                <p className="hiw-email-error">Something went wrong. Please try again.</p>
+              )}
+            </div>
+
+            <button className="hiw-start-btn" onClick={() => { setShowHowItWorks(false); setTab("predict"); }}>
+              Start Predicting →
+            </button>
           </div>
         </div>
       )}

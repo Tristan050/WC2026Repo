@@ -341,3 +341,10 @@ model AdminAuditLog {
   @@index([entityType, entityId, createdAt])
   @@index([adminUserId, createdAt])
 }
+
+model EmailSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
