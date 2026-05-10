@@ -419,6 +419,7 @@ type ProfileData = {
     window: {
       kind: string;
       match: {
+        id: string;
         matchNumber: number;
         stage: string;
         homeSlot: { label: string };
@@ -1141,17 +1142,28 @@ export function HomeClient({
     fetch("/api/session").catch(() => { /* non-critical — will retry on first pick */ });
   }, []);
 
-  // Fetch NextAuth session on mount, then fetch streak for logged-in users
+  // Fetch NextAuth session on mount, then restore profile data (streak + existing picks)
   useEffect(() => {
     fetch("/api/auth/session")
       .then(r => r.json())
       .then(d => {
         if (d?.user?.id) {
           setSessionUserId(d.user.id);
-          // Issue 12 — also load streak from profile
           fetch("/api/profile/me")
             .then(r => r.ok ? r.json() : null)
-            .then(p => { if (p?.streakCurrent > 0) setUserStreak(p.streakCurrent); })
+            .then(p => {
+              if (!p) return;
+              if (p.streakCurrent > 0) setUserStreak(p.streakCurrent);
+              // Restore existing picks so the UI shows "locked" state after a refresh
+              if (Array.isArray(p.picks) && p.picks.length > 0) {
+                const restored: Record<string, string> = {};
+                for (const pick of p.picks as { choice: string; window: { match: { id: string } } }[]) {
+                  const matchId = pick.window?.match?.id;
+                  if (matchId) restored[matchId] = pick.choice;
+                }
+                setMyPicks(prev => ({ ...restored, ...prev }));
+              }
+            })
             .catch(() => { });
         }
       })
@@ -1238,7 +1250,14 @@ export function HomeClient({
     () => activeMatch?.windows?.find(w => w.status === "OPEN") ?? null,
     [activeMatch]
   );
-  useEffect(() => { setSubmitted(null); setPickDistribution(null); }, [activeIdx]);
+  // Sync `submitted` from myPicks whenever the active match or known picks change.
+  // This means: after a refresh the pick shows as locked; navigating to a new match
+  // shows the existing pick for that match (or null if none).
+  useEffect(() => {
+    const existingPick = myPicks[activeMatch?.id ?? ""] ?? null;
+    setSubmitted(existingPick);
+    setPickDistribution(null);
+  }, [activeIdx, myPicks]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     document.documentElement.classList.toggle("light", theme === "light");
