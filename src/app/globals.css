@@ -1578,14 +1578,8 @@ body::before {
 }
 
 /* ═══════════════════════════════════════════════════════
-   MATCH CARD — FINISHED STATE (Feature 13)
+   MATCH CARD — FINISHED STATE → see Issue 11 block at end of file
 ═══════════════════════════════════════════════════════ */
-.match-card.is-finished {
-  opacity: 0.52;
-  filter: grayscale(0.35);
-}
-.match-card.is-finished:hover { opacity: 0.72; filter: none; }
-.match-card.is-finished.is-active { opacity: 1; filter: none; }
 
 /* ═══════════════════════════════════════════════════════
    PROFILE EMPTY STATE (Feature 10)
@@ -3329,3 +3323,103 @@ kbd {
 .match-page-link:hover { color: var(--brand-light); }
 .match-card.is-active .match-page-link { color: rgba(0,102,255,0.5); }
 .match-card.is-active .match-page-link:hover { color: var(--brand-light); }
+
+/* ═══════════════════════════════════════════════════════
+   ISSUE 9 — REAL PICK DISTRIBUTION indicator
+═══════════════════════════════════════════════════════ */
+/* When real data arrives the sub-label transitions */
+.tp-sub {
+  transition: color 0.4s ease;
+}
+/* Real-data variant gets a green tint */
+.trending-picks[data-real="true"] .tp-sub {
+  color: var(--accent-green);
+}
+
+/* ═══════════════════════════════════════════════════════
+   ISSUE 10 — ENHANCED PRE-MATCH HYPE CARD
+═══════════════════════════════════════════════════════ */
+/* Existing .match-card.is-hype has orange border — add closing-urgency pulse */
+.match-card.is-hype::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255,107,53,0.06), transparent);
+  pointer-events: none;
+}
+/* Countdown gets highlighted in orange for hype matches */
+.match-card.is-hype .countdown-tag {
+  color: #ff9055;
+  font-weight: 700;
+}
+
+/* ═══════════════════════════════════════════════════════
+   ISSUE 11 — FINISHED MATCH CARD DIMMING
+═══════════════════════════════════════════════════════ */
+.match-card.is-finished {
+  opacity: 0.52;
+  filter: saturate(0.35) brightness(0.85);
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+.match-card.is-finished:hover,
+.match-card.is-finished:focus-visible {
+  opacity: 0.75;
+  filter: saturate(0.55) brightness(0.95);
+}
+/* Keep "is-active" overriding the dim so selected finished match is legible */
+.match-card.is-finished.is-active {
+  opacity: 0.9;
+  filter: saturate(0.7) brightness(1);
+}
+/* Strike-through on finished score label */
+.match-card.is-finished .score-box {
+  font-style: italic;
+}
+
+/* ═══════════════════════════════════════════════════════
+   ISSUE 12 — STREAK BANNER (above predict panel)
+═══════════════════════════════════════════════════════ */
+.streak-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px 16px;
+  background: linear-gradient(135deg, rgba(255,107,53,0.12), rgba(255,160,0,0.08));
+  border: 1px solid rgba(255,140,60,0.30);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-3);
+  animation: confirmSlideIn 0.35s ease;
+}
+@keyframes hypePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
+}
+.streak-banner-fire {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+  animation: hypePulse 2s ease-in-out infinite;
+}
+.streak-banner-text {
+  flex: 1;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.streak-banner-text strong {
+  color: #ff9055;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  margin: 0 2px;
+}
+.streak-banner-cta {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #ff9055;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+@media (max-width: 400px) {
+  .streak-banner-cta { display: none; }
+}

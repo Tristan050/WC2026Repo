@@ -1013,6 +1013,10 @@ export function HomeClient({
   const [notifPrompt, setNotifPrompt] = useState(false);
   // Auth: client-side session check via NextAuth /api/auth/session
   const [sessionUserId, setSessionUserId] = useState<string | undefined>(undefined);
+  // Issue 9 — real pick distribution (loaded after user submits)
+  const [pickDistribution, setPickDistribution] = useState<{ home: number; draw: number; away: number; total: number } | null>(null);
+  // Issue 12 — streak for logged-in user
+  const [userStreak, setUserStreak] = useState<number>(0);
 
   // Restore persisted preferences after mount (SSR-safe — no localStorage on server)
   useEffect(() => {
@@ -1043,11 +1047,20 @@ export function HomeClient({
     } catch { /* private browsing */ }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch NextAuth session on mount
+  // Fetch NextAuth session on mount, then fetch streak for logged-in users
   useEffect(() => {
     fetch("/api/auth/session")
       .then(r => r.json())
-      .then(d => { if (d?.user?.id) setSessionUserId(d.user.id); })
+      .then(d => {
+        if (d?.user?.id) {
+          setSessionUserId(d.user.id);
+          // Issue 12 — also load streak from profile
+          fetch("/api/profile/me")
+            .then(r => r.ok ? r.json() : null)
+            .then(p => { if (p?.streakCurrent > 0) setUserStreak(p.streakCurrent); })
+            .catch(() => { });
+        }
+      })
       .catch(() => { });
   }, []);
 
@@ -1131,7 +1144,7 @@ export function HomeClient({
     () => activeMatch?.windows?.find(w => w.status === "OPEN") ?? null,
     [activeMatch]
   );
-  useEffect(() => { setSubmitted(null); }, [activeIdx]);
+  useEffect(() => { setSubmitted(null); setPickDistribution(null); }, [activeIdx]);
 
   useEffect(() => {
     document.documentElement.classList.toggle("light", theme === "light");
@@ -1177,6 +1190,13 @@ export function HomeClient({
         setTimeout(() => setNotifPrompt(true), 1200);
       }
       setToast("✓ Pick locked in — share your prediction to challenge friends!");
+      // Issue 9 — fetch real pick distribution for this window
+      if (openWindow) {
+        fetch(`/api/picks/distribution?windowId=${openWindow.id}`)
+          .then(r => r.ok ? r.json() : null)
+          .then(d => { if (d) setPickDistribution(d); })
+          .catch(() => { });
+      }
     } catch {
       setToast("Submit failed. Try again.");
     } finally {
@@ -1635,6 +1655,16 @@ export function HomeClient({
 
               {/* RIGHT — predict + bracket */}
               <section aria-label="Prediction and bracket" ref={predictPanelRef}>
+                {/* Issue 12 — streak banner for signed-in users */}
+                {userStreak > 0 && (
+                  <div className="streak-banner" role="status" aria-label={`Current streak: ${userStreak} correct picks in a row`}>
+                    <span className="streak-banner-fire" aria-hidden="true">🔥</span>
+                    <span className="streak-banner-text">
+                      Your streak: <strong>{userStreak}</strong> correct in a row
+                    </span>
+                    <span className="streak-banner-cta">Keep it going!</span>
+                  </div>
+                )}
                 <div className="predict-panel">
                   <div className="section-header" style={{ marginBottom: "var(--space-3)" }}>
                     <h2 className="section-title">Make Your Pick</h2>
@@ -1707,24 +1737,37 @@ export function HomeClient({
                     />
                   </div>
 
-                  {/* Trending picks — only revealed after user picks */}
+                  {/* Trending picks — revealed after user submits a pick */}
                   {submitted && activeMatch && (() => {
-                    const p = (() => {
-                      const oh = activeMatch.oddsHomeWin, od = activeMatch.oddsDraw, oa = activeMatch.oddsAwayWin;
-                      if (oh && od && oa) {
-                        const ih = 1 / oh, id = 1 / od, ia = 1 / oa, t = ih + id + ia;
-                        return { h: Math.round(ih / t * 100), d: Math.round(id / t * 100), a: Math.round(ia / t * 100) };
-                      }
-                      const hash = (s: string) => s.split("").reduce((x, c) => x + c.charCodeAt(0), 17);
-                      const hl = activeMatch.homeSlot?.label ?? "", al = activeMatch.awaySlot?.label ?? "";
-                      const hv = ((hash(hl) % 35) + 28), av = ((hash(al) % 30) + 20), dv = Math.max(8, 100 - hv - av), t = hv + av + dv;
-                      return { h: Math.round(hv / t * 100), d: Math.round(dv / t * 100), a: Math.round(av / t * 100) };
-                    })();
+                    // Use real DB distribution when available, otherwise fall back to odds/strength estimates
+                    const useReal = pickDistribution !== null && pickDistribution.total > 0;
+                    const total = useReal ? pickDistribution!.total : 0;
+                    const p = useReal
+                      ? {
+                          h: total > 0 ? Math.round(pickDistribution!.home / total * 100) : 33,
+                          d: total > 0 ? Math.round(pickDistribution!.draw / total * 100) : 34,
+                          a: total > 0 ? Math.round(pickDistribution!.away / total * 100) : 33,
+                        }
+                      : (() => {
+                          const oh = activeMatch.oddsHomeWin, od = activeMatch.oddsDraw, oa = activeMatch.oddsAwayWin;
+                          if (oh && od && oa) {
+                            const ih = 1 / oh, id = 1 / od, ia = 1 / oa, t = ih + id + ia;
+                            return { h: Math.round(ih / t * 100), d: Math.round(id / t * 100), a: Math.round(ia / t * 100) };
+                          }
+                          const hash = (s: string) => s.split("").reduce((x, c) => x + c.charCodeAt(0), 17);
+                          const hl = activeMatch.homeSlot?.label ?? "", al = activeMatch.awaySlot?.label ?? "";
+                          const hv = ((hash(hl) % 35) + 28), av = ((hash(al) % 30) + 20), dv = Math.max(8, 100 - hv - av), t = hv + av + dv;
+                          return { h: Math.round(hv / t * 100), d: Math.round(dv / t * 100), a: Math.round(av / t * 100) };
+                        })();
                     return (
                       <div className="trending-picks" aria-label="Community pick distribution">
                         <div className="tp-header">
                           <span className="tp-title">Community picks</span>
-                          <span className="tp-sub">based on market odds</span>
+                          <span className="tp-sub">
+                            {useReal
+                              ? `${total.toLocaleString()} player${total !== 1 ? "s" : ""} picked this match`
+                              : "based on market odds"}
+                          </span>
                         </div>
                         {([
                           { label: `${flag(activeMatch.homeSlot?.label ?? "")} Home Win`, pct: p.h, choice: "HOME" },

@@ -186,6 +186,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           content="width=device-width, initial-scale=1, viewport-fit=cover"
         />
 
+        {/* Favicon — SVG works in all modern browsers; ico.tsx / icon.tsx handle legacy */}
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.svg" />
+
         {/* Inline theme script — runs synchronously before first paint to prevent flash */}
         <script
           dangerouslySetInnerHTML={{
