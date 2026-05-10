@@ -130,12 +130,17 @@ export async function generateMetadata({
 /* ─── Page ─── */
 export default async function MatchPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ ref?: string; pick?: string }>;
 }) {
-  const { slug } = await params;
+  const [{ slug }, sp] = await Promise.all([params, searchParams]);
   const match = await getMatchBySlug(slug);
   if (!match) notFound();
+
+  const challengeRef = sp.ref ?? null;
+  const challengePick = sp.pick ?? null;
 
   const home = match.homeSlot?.label ?? "Home";
   const away = match.awaySlot?.label ?? "Away";
@@ -153,6 +158,30 @@ export default async function MatchPage({
 
   return (
     <>
+      {/* Challenge banner — shown when ?ref=X is in the URL */}
+      {challengeRef && (
+        <div className="challenge-banner" role="alert">
+          <span className="challenge-banner-icon" aria-hidden="true">🏆</span>
+          <div className="challenge-banner-body">
+            <strong>{decodeURIComponent(challengeRef)}</strong> challenged you!
+            {challengePick && (
+              <span className="challenge-banner-pick">
+                {" "}Their pick:{" "}
+                <strong>
+                  {challengePick === "HOME" ? `${home} Win`
+                    : challengePick === "AWAY" ? `${away} Win`
+                    : "Draw"}
+                </strong>
+                {" "}— can you beat them?
+              </span>
+            )}
+          </div>
+          <a href={`/?predict=${match.id}`} className="challenge-banner-pick-btn">
+            Make your pick →
+          </a>
+        </div>
+      )}
+
       {/* Inline JSON-LD for this specific match */}
       <script
         type="application/ld+json"

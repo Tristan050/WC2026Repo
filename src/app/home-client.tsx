@@ -120,6 +120,17 @@ function flag(label: string): string {
   return FLAGS[l] ?? Object.entries(FLAGS).find(([k]) => l.includes(k))?.[1] ?? "";
 }
 
+/* ── Slug helpers (shared with /match/[slug]) ── */
+function toSlug(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+function matchSlugFor(home: string, away: string) {
+  return `${toSlug(home)}-vs-${toSlug(away)}`;
+}
+const SITE = typeof window !== "undefined"
+  ? window.location.origin
+  : (process.env.NEXT_PUBLIC_SITE_URL ?? "https://worldcupclutch.com");
+
 /* ─────────────────────── HELPERS ─────────────────────── */
 function fmtKickoff(utc: string) {
   return new Intl.DateTimeFormat("nl-NL", {
@@ -983,6 +994,11 @@ export function HomeClient({
   const [liveViewers, setLiveViewers] = useState(() => 210 + Math.floor(Math.random() * 120));
   // Feature 14 — picks today trend
   const [picksToday, setPicksToday] = useState(() => 38 + Math.floor(Math.random() * 30));
+  // Issue 6 — challenge banner (shown when ?ref=X is in URL)
+  const [challengeBanner, setChallengeBanner] = useState<{ ref: string; pick?: string } | null>(null);
+  // Issue 7 — inline hero email capture
+  const [heroEmail, setHeroEmail] = useState("");
+  const [heroEmailStatus, setHeroEmailStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
   const predictPanelRef = useRef<HTMLElement>(null);
 
   // Feature 16 — theme (SSR-safe: always start "dark", read localStorage after mount)
@@ -1008,6 +1024,23 @@ export function HomeClient({
       const snd = localStorage.getItem("wcc_sound");
       if (snd !== null) setSoundEnabled(snd !== "false");
     } catch { /* private browsing — ignore */ }
+
+    // Issue 6 — parse ?ref=X&pick=HOME challenge params from URL
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      const ref = sp.get("ref");
+      const pick = sp.get("pick") ?? undefined;
+      if (ref) setChallengeBanner({ ref, pick });
+
+      // ?predict=matchId — auto-navigate to referenced match
+      const predictId = sp.get("predict");
+      if (predictId) {
+        setTab("predict");
+        // activeIdx will be resolved once matches load
+        // store in sessionStorage so we can apply once matches arrive
+        sessionStorage.setItem("wcc_predict", predictId);
+      }
+    } catch { /* private browsing */ }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch NextAuth session on mount
@@ -1079,6 +1112,19 @@ export function HomeClient({
     const t = setInterval(() => load(false), 30000);
     return () => clearInterval(t);
   }, [load, initialMatches.length]);
+
+  // Resolve ?predict=matchId once matches are available
+  useEffect(() => {
+    if (matches.length === 0) return;
+    try {
+      const id = sessionStorage.getItem("wcc_predict");
+      if (id) {
+        const idx = matches.findIndex(m => m.id === id);
+        if (idx >= 0) { setActiveIdx(idx); setTab("predict"); }
+        sessionStorage.removeItem("wcc_predict");
+      }
+    } catch { /* ignore */ }
+  }, [matches]);
 
   const activeMatch = matches[activeIdx] ?? null;
   const openWindow = useMemo(
@@ -1292,6 +1338,34 @@ export function HomeClient({
             </div>
           )}
 
+          {/* ── Challenge banner (Issue 6) ── */}
+          {challengeBanner && (
+            <div className="challenge-banner" role="alert">
+              <span className="challenge-banner-icon" aria-hidden="true">🏆</span>
+              <div className="challenge-banner-body">
+                <strong>{challengeBanner.ref}</strong> challenged you!
+                {challengeBanner.pick && (
+                  <span className="challenge-banner-pick">
+                    {" "}Their pick:{" "}
+                    <strong>{challengeBanner.pick === "HOME" ? "Home Win" : challengeBanner.pick === "AWAY" ? "Away Win" : "Draw"}</strong>
+                    {" "}— can you beat them?
+                  </span>
+                )}
+              </div>
+              <button
+                className="challenge-banner-pick-btn"
+                onClick={() => { setTab("predict"); setChallengeBanner(null); }}
+              >
+                Make your pick →
+              </button>
+              <button
+                className="challenge-banner-dismiss"
+                onClick={() => setChallengeBanner(null)}
+                aria-label="Dismiss challenge"
+              >✕</button>
+            </div>
+          )}
+
           {/* ── Hero ── */}
           <section className="hero" aria-labelledby="hero-heading">
             <div className="hero-eyebrow" aria-label="FIFA World Cup 2026 — Official Predictor">
@@ -1313,6 +1387,50 @@ export function HomeClient({
             >
               Start Predicting →
             </button>
+
+            {/* Issue 7 — inline email capture */}
+            {heroEmailStatus !== "done" ? (
+              <form
+                className="hero-email-form"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!heroEmail || heroEmailStatus !== "idle") return;
+                  setHeroEmailStatus("sending");
+                  try {
+                    const res = await fetch("/api/email/subscribe", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ email: heroEmail }),
+                    });
+                    setHeroEmailStatus(res.ok ? "done" : "error");
+                  } catch { setHeroEmailStatus("error"); }
+                }}
+                aria-label="Subscribe for match reminders"
+              >
+                <input
+                  type="email"
+                  className="hero-email-input"
+                  placeholder="your@email.com"
+                  value={heroEmail}
+                  onChange={e => setHeroEmail(e.target.value)}
+                  required
+                  aria-label="Email address for match reminders"
+                />
+                <button
+                  type="submit"
+                  className="hero-email-btn"
+                  disabled={heroEmailStatus === "sending"}
+                >
+                  {heroEmailStatus === "sending" ? "..." : "Get reminders →"}
+                </button>
+              </form>
+            ) : (
+              <p className="hero-email-success">✅ You&apos;re in! We&apos;ll remind you before each match.</p>
+            )}
+            {heroEmailStatus === "error" && (
+              <p className="hero-email-error">Something went wrong — try again.</p>
+            )}
+
             <div className="hero-stats" role="list" aria-label="Tournament statistics">
               <div className="hero-stat" role="listitem">
                 <span className="hero-stat-v">104</span>
@@ -1457,6 +1575,15 @@ export function HomeClient({
                                 <span className="meta-text">{m.stadium?.city}</span>
                                 <span className="meta-text-right">{fmtKickoff(m.kickoffUtc)}</span>
                               </div>
+                              {/* Issue 5 — link to individual match page */}
+                              <a
+                                href={`/match/${matchSlugFor(m.homeSlot?.label ?? "", m.awaySlot?.label ?? "")}`}
+                                className="match-page-link"
+                                onClick={e => e.stopPropagation()}
+                                aria-label={`Match details: ${m.homeSlot?.label} vs ${m.awaySlot?.label}`}
+                              >
+                                Stats &amp; prediction →
+                              </a>
                             </button>
                           </article>
                         );
@@ -1637,23 +1764,31 @@ export function HomeClient({
                     className={`share-btn ${submitted ? "share-btn-active" : "share-btn-inactive"}`}
                     onClick={async () => {
                       if (!submitted || !activeMatch) return;
+                      const home = activeMatch.homeSlot?.label ?? "Home";
+                      const away = activeMatch.awaySlot?.label ?? "Away";
+                      const slug = matchSlugFor(home, away);
                       const pickLabel =
-                        submitted === "HOME"
-                          ? `${activeMatch.homeSlot?.label} to win`
-                          : submitted === "AWAY"
-                          ? `${activeMatch.awaySlot?.label} to win`
-                          : "Draw";
-                      const url = typeof window !== "undefined" ? window.location.href : "https://worldcupclutch.com";
-                      const text = `⚽ I just picked ${pickLabel}!\n${activeMatch.homeSlot?.label} vs ${activeMatch.awaySlot?.label} · WC2026\nCan you beat my prediction? 🏆\n${url}`;
+                        submitted === "HOME" ? `${home} to win`
+                        : submitted === "AWAY" ? `${away} to win`
+                        : "a Draw";
+                      // Deep link → match page with pick + optional ref
+                      const ref = encodeURIComponent("me"); // swap for real username when auth works
+                      const deepUrl = `${SITE}/match/${slug}?ref=${ref}&pick=${submitted}`;
+                      const shareText = `⚽ I picked ${pickLabel} — ${home} vs ${away} · WC2026\nCan you beat me? 🏆\n${deepUrl}`;
                       try {
-                        await navigator.clipboard.writeText(text);
-                        setToast("🔗 Challenge link copied — paste it to a friend!");
+                        // Use Web Share API when available (mobile)
+                        if (navigator.share) {
+                          await navigator.share({ title: `${home} vs ${away} · My WC Pick`, text: shareText, url: deepUrl });
+                        } else {
+                          await navigator.clipboard.writeText(shareText);
+                          setToast("🔗 Challenge link copied — send it to a friend!");
+                        }
                       } catch {
-                        setToast(`🔗 ${text}`);
+                        setToast(`🔗 ${deepUrl}`);
                       }
                     }}
                     disabled={!submitted}
-                    aria-label="Copy challenge link to share your prediction"
+                    aria-label="Share your prediction and challenge a friend"
                   >
                     🔗 Challenge a Friend
                   </button>
