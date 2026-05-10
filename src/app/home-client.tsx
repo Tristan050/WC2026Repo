@@ -1412,6 +1412,9 @@ export function HomeClient({
 
         {/* ── Countdown banner ── */}
         <CountdownBanner onPickNow={() => { setTab("predict"); }} />
+        <div className="picks-open-banner">
+          🔓 Picks are open for the first 5 matches — lock yours in before June 11
+        </div>
 
         <main className="page" id="main-content">
 
