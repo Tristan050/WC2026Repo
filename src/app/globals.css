@@ -3157,3 +3157,42 @@ kbd {
 @media (min-width: 1024px) {
   .loading-bottom-nav { display: none; }
 }
+
+/* ═══════════════════════════════════════════════════════
+   MINI LEADERBOARD — teaser / empty state (Issue 4)
+═══════════════════════════════════════════════════════ */
+.mini-lb-teaser .mini-lb-empty {
+  flex-direction: column;
+  text-align: center;
+  padding: var(--space-5) var(--space-4);
+  gap: var(--space-3);
+}
+.mini-lb-teaser .mini-lb-empty-icon { font-size: 2rem; }
+.mini-lb-teaser .mini-lb-empty-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.mini-lb-teaser .mini-lb-empty-sub {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.mini-lb-cta {
+  padding: 8px 20px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(135deg, var(--brand-mid), var(--brand-light));
+  border: none;
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  margin-top: var(--space-2);
+}
+.mini-lb-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0,102,255,0.3);
+}

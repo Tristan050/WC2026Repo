@@ -888,6 +888,30 @@ function MiniLeaderboard({
       .catch(() => setLoading(false));
   }, []);
 
+  // Hide the panel entirely while loading (no flash of empty header)
+  if (loading) return null;
+
+  // Empty state: show a teaser instead of broken-looking empty list
+  if (rows.length === 0) {
+    return (
+      <div className="mini-lb panel mini-lb-teaser" aria-label="Leaderboard teaser">
+        <div className="section-header">
+          <h2 className="section-title">🏅 Top Players</h2>
+        </div>
+        <div className="mini-lb-empty" role="status">
+          <span className="mini-lb-empty-icon" aria-hidden="true">🚀</span>
+          <div>
+            <p className="mini-lb-empty-title">Tournament kicks off Jun 11</p>
+            <p className="mini-lb-empty-sub">Make your picks now — be the first name on the leaderboard.</p>
+          </div>
+          <button className="mini-lb-cta" onClick={onViewAll}>
+            Start →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mini-lb panel" aria-label="Top 5 leaderboard">
       <div className="section-header">
@@ -897,26 +921,7 @@ function MiniLeaderboard({
         </button>
       </div>
       <div className="mini-lb-rows" role="list">
-        {loading
-          ? Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="lb-row">
-                <div className="skeleton" style={{ width: 24, height: 14, borderRadius: 4 }} />
-                <div className="skeleton" style={{ width: 28, height: 28, borderRadius: "50%" }} />
-                <div className="skeleton" style={{ flex: 1, height: 12 }} />
-                <div className="skeleton" style={{ width: 42, height: 14 }} />
-              </div>
-            ))
-          : rows.length === 0
-          ? (
-              <div className="mini-lb-empty" role="status">
-                <span className="mini-lb-empty-icon" aria-hidden="true">🎯</span>
-                <div>
-                  <p className="mini-lb-empty-title">No scores yet</p>
-                  <p className="mini-lb-empty-sub">Be the first on the leaderboard — make your picks now.</p>
-                </div>
-              </div>
-            )
-          : rows.map(u => (
+        {rows.map(u => (
               <article
                 key={u.userId}
                 className={`lb-row mini-lb-row${u.userId === currentUserId ? " lb-row-me" : ""}`}
