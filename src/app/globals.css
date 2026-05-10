@@ -986,6 +986,26 @@ body::before {
 .mini-lb-row {
   padding: var(--space-2) var(--space-2);
 }
+.mini-lb-empty {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: rgba(255,255,255,0.02);
+  border: 1px dashed var(--border);
+}
+.mini-lb-empty-icon { font-size: 1.4rem; flex-shrink: 0; }
+.mini-lb-empty-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+.mini-lb-empty-sub {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
 
 /* ═══════════════════════════════════════════════════════
    TRENDING PICKS
