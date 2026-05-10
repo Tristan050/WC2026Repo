@@ -2793,3 +2793,162 @@ body::before {
   .hiw-email-form { flex-direction: column; }
   .hiw-fab { bottom: calc(var(--nav-h) + 12px); right: 12px; width: 36px; height: 36px; font-size: 0.9rem; }
 }
+
+/* ═══════════════════════════════════════════════════════
+   KPI STRIP — FEATURE 14 (trend + progress bar)
+═══════════════════════════════════════════════════════ */
+.kpi-trend {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--accent-green);
+  letter-spacing: 0.04em;
+  margin-top: 2px;
+}
+.kpi-progress-bar {
+  margin-top: 4px;
+  height: 3px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 2px;
+  overflow: hidden;
+  width: 100%;
+}
+.kpi-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--brand-mid), var(--brand-light));
+  border-radius: 2px;
+  transition: width 0.6s ease;
+  min-width: 2px;
+}
+.kpi-dot-green {
+  background: var(--accent-green) !important;
+  box-shadow: 0 0 6px rgba(0,232,122,0.5) !important;
+  animation: greenPulse 1.8s ease-in-out infinite !important;
+}
+
+/* ═══════════════════════════════════════════════════════
+   BRACKET TILE — FEATURE 12 (team flags)
+═══════════════════════════════════════════════════════ */
+.bt-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin: 4px 0 2px;
+}
+.bt-flag {
+  font-size: 1rem;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
+}
+.bt-flag-more {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  align-self: center;
+  letter-spacing: 0.02em;
+}
+
+/* ═══════════════════════════════════════════════════════
+   CUSTOM 404 PAGE — FEATURE 17
+═══════════════════════════════════════════════════════ */
+.nf-wrapper {
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6) var(--space-4);
+  background: var(--bg-deep);
+}
+.nf-card {
+  text-align: center;
+  max-width: 440px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+}
+.nf-ball {
+  font-size: 4rem;
+  animation: nfSpin 4s linear infinite;
+  display: inline-block;
+}
+@keyframes nfSpin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.nf-code {
+  font-family: var(--font-display);
+  font-size: clamp(5rem, 20vw, 9rem);
+  letter-spacing: 0.04em;
+  line-height: 1;
+  color: transparent;
+  background: linear-gradient(135deg, var(--brand-mid), var(--brand-light));
+  -webkit-background-clip: text;
+  background-clip: text;
+  margin: 0;
+}
+.nf-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 5vw, 2rem);
+  letter-spacing: 0.04em;
+  color: var(--text-primary);
+  margin: 0;
+}
+.nf-desc {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 360px;
+}
+.nf-actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.nf-btn-primary {
+  padding: 12px 24px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(135deg, var(--brand-mid), var(--brand-light));
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.18s ease;
+}
+.nf-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,102,255,0.35);
+}
+.nf-btn-secondary {
+  padding: 12px 24px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  border: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.18s ease;
+}
+.nf-btn-secondary:hover {
+  border-color: var(--border-brand);
+  color: var(--brand-light);
+  background: var(--brand-dim);
+}
+.nf-hint {
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+}
+.nf-link {
+  color: var(--brand-light);
+  text-decoration: none;
+}
+.nf-link:hover { text-decoration: underline; }
+
+@media (max-width: 480px) {
+  .nf-actions { flex-direction: column; }
+  .nf-btn-primary, .nf-btn-secondary { text-align: center; }
+}
