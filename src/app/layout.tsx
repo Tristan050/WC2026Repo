@@ -168,7 +168,7 @@ const jsonLd = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" dir="ltr">
+    <html lang="en" dir="ltr" suppressHydrationWarning>
       <head>
         {/* Theme color */}
         <meta name="theme-color" content="#03080f" />
@@ -184,6 +184,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta
           name="viewport"
           content="width=device-width, initial-scale=1, viewport-fit=cover"
+        />
+
+        {/* Inline theme script — runs synchronously before first paint to prevent flash */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('wcc_theme');if(t==='light')document.documentElement.classList.add('light');}catch(e){}})()`,
+          }}
         />
 
         {/* JSON-LD */}

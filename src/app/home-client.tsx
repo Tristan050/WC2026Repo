@@ -42,13 +42,27 @@ function CountdownBanner({ onPickNow }: { onPickNow?: () => void }) {
     >
       <span className="cd-eyebrow">⚽ KICKOFF IN</span>
       <div className="cd-clock" aria-hidden="true">
-        <div className="cd-unit"><span className="cd-n">{t.days}</span><span className="cd-l">DAYS</span></div>
+        <div className="cd-unit">
+          <span className="cd-n" key={t.days}>{t.days}</span>
+          <span className="cd-l">DAYS</span>
+        </div>
         <span className="cd-sep">:</span>
-        <div className="cd-unit"><span className="cd-n">{p(t.hrs)}</span><span className="cd-l">HRS</span></div>
+        <div className="cd-unit">
+          <span className="cd-n cd-flip" key={`h${t.hrs}`}>{p(t.hrs)}</span>
+          <span className="cd-l">HRS</span>
+        </div>
         <span className="cd-sep">:</span>
-        <div className="cd-unit"><span className="cd-n">{p(t.mins)}</span><span className="cd-l">MIN</span></div>
+        <div className="cd-unit">
+          <span className="cd-n cd-flip" key={`m${t.mins}`}>{p(t.mins)}</span>
+          <span className="cd-l">MIN</span>
+        </div>
         <span className="cd-sep cd-sep-blink">:</span>
-        <div className="cd-unit"><span className="cd-n cd-n-sec">{p(t.secs)}</span><span className="cd-l">SEC</span></div>
+        <div className="cd-unit cd-unit-sec">
+          <div className="cd-flip-card" key={t.secs}>
+            <span className="cd-n cd-n-sec cd-flip-face">{p(t.secs)}</span>
+          </div>
+          <span className="cd-l">SEC</span>
+        </div>
       </div>
       <span className="cd-match">🇲🇽 Mexico vs South Africa 🇿🇦 · Azteca</span>
       {onPickNow && (
@@ -966,24 +980,30 @@ export function HomeClient({
   const [picksToday, setPicksToday] = useState(() => 38 + Math.floor(Math.random() * 30));
   const predictPanelRef = useRef<HTMLElement>(null);
 
-  // Feature 16 — theme
-  const [theme, setTheme] = useState<"dark" | "light">(() =>
-    typeof window !== "undefined" ? ((localStorage.getItem("wcc_theme") ?? "dark") as "dark" | "light") : "dark"
-  );
+  // Feature 16 — theme (SSR-safe: always start "dark", read localStorage after mount)
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
   // Feature 17 — supporter badge
-  const [supporterTeam, setSupporterTeam] = useState<string>(() =>
-    typeof window !== "undefined" ? (localStorage.getItem("wcc_supporter") ?? "") : ""
-  );
+  const [supporterTeam, setSupporterTeam] = useState<string>("");
   // Feature 18 — sound
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(() =>
-    typeof window !== "undefined" ? localStorage.getItem("wcc_sound") !== "false" : true
-  );
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   // Feature 19 — my picks per match
   const [myPicks, setMyPicks] = useState<Record<string, string>>({});
   // Feature 20 — notification prompt
   const [notifPrompt, setNotifPrompt] = useState(false);
   // Auth: client-side session check via NextAuth /api/auth/session
   const [sessionUserId, setSessionUserId] = useState<string | undefined>(undefined);
+
+  // Restore persisted preferences after mount (SSR-safe — no localStorage on server)
+  useEffect(() => {
+    try {
+      const t = localStorage.getItem("wcc_theme") as "dark" | "light" | null;
+      if (t) setTheme(t);
+      const s = localStorage.getItem("wcc_supporter");
+      if (s) setSupporterTeam(s);
+      const snd = localStorage.getItem("wcc_sound");
+      if (snd !== null) setSoundEnabled(snd !== "false");
+    } catch { /* private browsing — ignore */ }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch NextAuth session on mount
   useEffect(() => {
@@ -1112,6 +1132,62 @@ export function HomeClient({
       setSubmitting(false);
     }
   };
+
+  // Feature 24 — keyboard navigation
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      // Skip if user is typing in an input/textarea
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      switch (e.key) {
+        case "ArrowRight":
+        case "ArrowDown":
+          e.preventDefault();
+          setActiveIdx(i => Math.min(i + 1, matches.length - 1));
+          setTab("predict");
+          break;
+        case "ArrowLeft":
+        case "ArrowUp":
+          e.preventDefault();
+          setActiveIdx(i => Math.max(i - 1, 0));
+          setTab("predict");
+          break;
+        case "h":
+        case "H":
+          if (tab === "predict" || tab === "matches") {
+            e.preventDefault();
+            void submitPick("HOME");
+          }
+          break;
+        case "d":
+        case "D":
+          if (tab === "predict" || tab === "matches") {
+            e.preventDefault();
+            void submitPick("DRAW");
+          }
+          break;
+        case "a":
+        case "A":
+          if (tab === "predict" || tab === "matches") {
+            e.preventDefault();
+            void submitPick("AWAY");
+          }
+          break;
+        case "?":
+          setShowHowItWorks(v => !v);
+          break;
+        case "Escape":
+          setBracketDrawer(null);
+          setShowHowItWorks(false);
+          break;
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  // submitPick is stable (useCallback not used, but matches+openWindow are captured via closure)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matches, tab, submitPick]);
 
   // KPI calculations
   const nextTs = matches.map(m => new Date(m.kickoffUtc).getTime()).filter(t => t > Date.now()).sort((a, b) => a - b)[0];
@@ -1309,6 +1385,10 @@ export function HomeClient({
                         const sl = matchStatus(m.status);
                         const cd = sl === "UPCOMING" ? countdown(m.kickoffUtc) : null;
                         const isActive = activeIdx === idx;
+                        // Feature 22: pre-match hype when kickoff is within 24h
+                        const msTillKickoff = new Date(m.kickoffUtc).getTime() - Date.now();
+                        const isHype = sl === "UPCOMING" && msTillKickoff > 0 && msTillKickoff < 86_400_000;
+                        const hrsLeft = isHype ? Math.ceil(msTillKickoff / 3_600_000) : 0;
                         return (
                           <article
                             key={m.id}
@@ -1322,8 +1402,12 @@ export function HomeClient({
                                 isActive ? "is-active" : "",
                                 sl === "LIVE" ? "is-live" : "",
                                 sl === "FT" ? "is-finished" : "",
+                                isHype ? "is-hype" : "",
                               ].filter(Boolean).join(" ")}
                               onClick={() => { setActiveIdx(idx); setTab("predict"); }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setActiveIdx(idx); setTab("predict"); }
+                              }}
                             >
                               <div className="match-teams">
                                 <span className="team-name">
@@ -1350,6 +1434,11 @@ export function HomeClient({
                               <div className="match-meta">
                                 <span className={`status-chip chip-${sl.toLowerCase()}`} aria-label={`Status: ${sl}`}>{sl}</span>
                                 {cd && <span className="countdown-tag" aria-label={`Starts in ${cd}`}>in {cd}</span>}
+                                {isHype && (
+                                  <span className="hype-tag" aria-label={`Picks close in ${hrsLeft}h`}>
+                                    🔥 {hrsLeft}h left
+                                  </span>
+                                )}
                                 <span className="stage-tag" aria-label={`Stage: ${stageLabel(m.stage)}`}>{stageLabel(m.stage)}</span>
                                 {myPicks[m.id] && (
                                   <span className="my-pick-chip" aria-label={`Your pick: ${myPicks[m.id]}`}>
@@ -1563,6 +1652,15 @@ export function HomeClient({
                   >
                     🔗 Challenge a Friend
                   </button>
+
+                  {/* Keyboard shortcuts hint — Feature 24 */}
+                  <div className="kbd-hints" aria-label="Keyboard shortcuts">
+                    <span className="kbd-hint"><kbd>←</kbd><kbd>→</kbd> navigate</span>
+                    <span className="kbd-hint"><kbd>H</kbd> home</span>
+                    <span className="kbd-hint"><kbd>D</kbd> draw</span>
+                    <span className="kbd-hint"><kbd>A</kbd> away</span>
+                    <span className="kbd-hint"><kbd>?</kbd> how it works</span>
+                  </div>
                 </div>
 
                 {/* Bracket */}

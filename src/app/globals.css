@@ -2952,3 +2952,208 @@ body::before {
   .nf-actions { flex-direction: column; }
   .nf-btn-primary, .nf-btn-secondary { text-align: center; }
 }
+
+/* ═══════════════════════════════════════════════════════
+   COUNTDOWN FLIP ANIMATION (Feature 21)
+═══════════════════════════════════════════════════════ */
+/* Smooth entrance for hrs/mins on change (keyed by React) */
+.cd-flip {
+  display: inline-block;
+  animation: cdFlipIn 0.22s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  transform-origin: center top;
+}
+@keyframes cdFlipIn {
+  from { transform: translateY(-30%) scaleY(0.7); opacity: 0; }
+  to   { transform: translateY(0) scaleY(1); opacity: 1; }
+}
+
+/* Flip card for seconds — 3D perspective effect */
+.cd-unit-sec {
+  perspective: 120px;
+}
+.cd-flip-card {
+  display: inline-block;
+  animation: secFlip 0.35s cubic-bezier(0.4, 0, 0.2, 1) both;
+  transform-origin: center 60%;
+  backface-visibility: hidden;
+}
+@keyframes secFlip {
+  0%   { transform: rotateX(-55deg) scaleY(0.8); opacity: 0; }
+  60%  { transform: rotateX(8deg) scaleY(1.04); opacity: 1; }
+  100% { transform: rotateX(0deg) scaleY(1); opacity: 1; }
+}
+.cd-flip-face {
+  display: block;
+}
+
+/* ═══════════════════════════════════════════════════════
+   PRE-MATCH HYPE CARD (Feature 22)
+═══════════════════════════════════════════════════════ */
+.match-card.is-hype {
+  border-color: rgba(255, 100, 0, 0.35) !important;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 100, 0, 0.06) 0%,
+    var(--bg-card) 60%
+  ) !important;
+  box-shadow: 0 0 0 1px rgba(255, 100, 0, 0.2), 0 4px 20px rgba(255, 100, 0, 0.08) !important;
+}
+.match-card.is-hype::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #ff6400, #ff9500, #ff6400);
+  background-size: 200% 100%;
+  animation: hypeGlow 2s ease-in-out infinite;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+@keyframes hypeGlow {
+  0%, 100% { background-position: 0% 0%; opacity: 0.7; }
+  50%       { background-position: 100% 0%; opacity: 1; }
+}
+.hype-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 100, 0, 0.12);
+  border: 1px solid rgba(255, 100, 0, 0.3);
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #ff8040;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  animation: hypeTagPulse 2s ease-in-out infinite;
+}
+@keyframes hypeTagPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.75; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   KEYBOARD FOCUS STYLES (Feature 24)
+═══════════════════════════════════════════════════════ */
+/* Visible focus ring for keyboard navigation */
+.match-card:focus-visible {
+  outline: 2px solid var(--brand-light);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(0, 102, 255, 0.2);
+}
+.nav-btn:focus-visible,
+.topbar-nav-btn:focus-visible,
+.hero-cta:focus-visible,
+.hiw-fab:focus-visible {
+  outline: 2px solid var(--brand-light);
+  outline-offset: 3px;
+}
+
+/* Keyboard shortcut hint — shown in predict panel */
+.kbd-hints {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+.kbd-hint {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+}
+kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 5px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: var(--font-body);
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+@media (max-width: 767px) {
+  .kbd-hints { display: none; } /* keyboard hints irrelevant on mobile */
+}
+
+/* ═══════════════════════════════════════════════════════
+   LOADING PAGE SKELETON (Feature 20)
+═══════════════════════════════════════════════════════ */
+.loading-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+  background: var(--bg-deep);
+}
+.loading-topbar {
+  height: var(--topbar-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-4);
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 500;
+}
+.loading-logo-sk { width: 160px; height: 22px; border-radius: 4px; }
+.loading-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 14px 24px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.loading-main {
+  flex: 1;
+  padding: var(--space-5) var(--space-4);
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
+}
+.loading-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+@media (min-width: 1024px) {
+  .loading-grid { grid-template-columns: 1fr 1fr; }
+}
+.loading-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-4);
+}
+.loading-match-card {
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+.loading-match-card:last-child { border-bottom: none; }
+.loading-bottom-nav {
+  height: var(--nav-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 var(--space-4);
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  position: sticky;
+  bottom: 0;
+}
+@media (min-width: 1024px) {
+  .loading-bottom-nav { display: none; }
+}
