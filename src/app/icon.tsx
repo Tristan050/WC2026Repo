@@ -10,41 +10,38 @@ export default function Icon() {
         style={{
           width: 32,
           height: 32,
-          background: "#03080f",
+          background: "linear-gradient(145deg, #0a1628 0%, #03080f 100%)",
           borderRadius: 8,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          border: "1.5px solid rgba(0,102,255,0.6)",
           position: "relative",
           overflow: "hidden",
+          border: "1.5px solid #1a4aaa",
         }}
       >
-        {/* Blue glow top-right */}
+        {/* Glow accent */}
         <div
           style={{
             position: "absolute",
-            top: -6,
-            right: -6,
-            width: 18,
-            height: 18,
+            top: -4,
+            right: -4,
+            width: 16,
+            height: 16,
             borderRadius: "50%",
-            background: "rgba(0,102,255,0.35)",
+            background: "rgba(0,102,255,0.45)",
+            filter: "blur(6px)",
           }}
         />
-        {/* "WC" logotype */}
+        {/* Football emoji as icon */}
         <span
           style={{
-            fontFamily: "sans-serif",
-            fontSize: 13,
-            fontWeight: 900,
-            color: "#ffffff",
-            letterSpacing: "-0.5px",
+            fontSize: 18,
             lineHeight: 1,
             position: "relative",
           }}
         >
-          <span style={{ color: "#3385ff" }}>W</span>C
+          ⚽
         </span>
       </div>
     ),
