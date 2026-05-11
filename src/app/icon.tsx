@@ -11,37 +11,39 @@ export default function Icon() {
           width: 32,
           height: 32,
           background: "linear-gradient(145deg, #0a1628 0%, #03080f 100%)",
-          borderRadius: 8,
+          borderRadius: 7,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          position: "relative",
-          overflow: "hidden",
           border: "1.5px solid #1a4aaa",
+          overflow: "hidden",
         }}
       >
-        {/* Glow accent */}
+        {/* Blue glow */}
         <div
           style={{
             position: "absolute",
-            top: -4,
-            right: -4,
-            width: 16,
-            height: 16,
+            top: -6,
+            right: -6,
+            width: 18,
+            height: 18,
             borderRadius: "50%",
-            background: "rgba(0,102,255,0.45)",
-            filter: "blur(6px)",
+            background: "rgba(0,102,255,0.5)",
+            filter: "blur(7px)",
           }}
         />
-        {/* Football emoji as icon */}
+        {/* WCC monogram */}
         <span
           style={{
-            fontSize: 18,
-            lineHeight: 1,
+            fontSize: 11,
+            fontWeight: 900,
+            color: "#4d94ff",
+            letterSpacing: "-0.04em",
+            fontFamily: "system-ui, -apple-system, sans-serif",
             position: "relative",
           }}
         >
-          ⚽
+          WCC
         </span>
       </div>
     ),

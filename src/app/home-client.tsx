@@ -85,8 +85,8 @@ type LiveMatch = {
   kickoffUtc: string;
   homeScore: number;
   awayScore: number;
-  homeSlot: { label: string };
-  awaySlot: { label: string };
+  homeSlot: { label: string; groupCode?: string | null };
+  awaySlot: { label: string; groupCode?: string | null };
   stadium: { city: string; name: string };
   windows?: { id: string; status: string; kind: string }[];
   oddsHomeWin?: number | null;
@@ -1137,6 +1137,12 @@ export function HomeClient({
   // Issue 10 — shortcuts overlay
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [shortcutsHintSeen, setShortcutsHintSeen] = useState(true); // true = no hint needed
+  // Issue 11 — match feed filter
+  const [feedFilter, setFeedFilter] = useState<string>("ALL"); // "ALL" | "OPEN" | "A".."L"
+  // Issue 13 — share: user's display name for ref param
+  const [sessionDisplayName, setSessionDisplayName] = useState<string>("");
+  // Issue 15 — real platform stats
+  const [realStats, setRealStats] = useState<{ picksToday: number; picksTotal: number; usersTotal: number } | null>(null);
 
   // Restore persisted preferences after mount (SSR-safe — no localStorage on server)
   useEffect(() => {
@@ -1181,6 +1187,14 @@ export function HomeClient({
     fetch("/api/session").catch(() => { /* non-critical — will retry on first pick */ });
   }, []);
 
+  // Issue 15 — fetch real platform stats on mount
+  useEffect(() => {
+    fetch("/api/activity/stats")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setRealStats(d); })
+      .catch(() => {});
+  }, []);
+
   // Fetch NextAuth session on mount, then restore profile data (streak + existing picks)
   useEffect(() => {
     fetch("/api/auth/session")
@@ -1188,6 +1202,8 @@ export function HomeClient({
       .then(d => {
         if (d?.user?.id) {
           setSessionUserId(d.user.id);
+          // Issue 13 — capture display name for share ref
+          if (d.user.name) setSessionDisplayName(d.user.name);
           fetch("/api/profile/me")
             .then(r => r.ok ? r.json() : null)
             .then(p => {
@@ -1303,6 +1319,23 @@ export function HomeClient({
       }
     } catch { /* ignore */ }
   }, [matches]);
+
+  // Issue 11 — feed filtering
+  const availableGroups = useMemo(() => {
+    const groups = new Set<string>();
+    for (const m of matches) {
+      const g = m.homeSlot?.groupCode;
+      if (g) groups.add(g);
+    }
+    return Array.from(groups).sort();
+  }, [matches]);
+
+  const filteredMatches = useMemo(() => {
+    if (feedFilter === "ALL") return matches;
+    if (feedFilter === "OPEN") return matches.filter(m => m.windows?.some(w => w.status === "OPEN"));
+    // Group filter (A–L)
+    return matches.filter(m => m.homeSlot?.groupCode === feedFilter || m.awaySlot?.groupCode === feedFilter);
+  }, [matches, feedFilter]);
 
   const activeMatch = matches[activeIdx] ?? null;
   const openWindow = useMemo(
@@ -1483,10 +1516,12 @@ export function HomeClient({
           </nav>
 
           <div className="topbar-right">
-            <div className="topbar-live-counter" aria-live="polite">
-              <span className="topbar-live-dot" aria-hidden="true" />
-              {liveViewers.toLocaleString()}
-            </div>
+            {realStats && realStats.picksToday > 0 && (
+              <div className="topbar-live-counter" aria-live="polite" title={`${realStats.picksToday} picks in the last 24h`}>
+                <span className="topbar-live-dot" aria-hidden="true" />
+                {realStats.picksToday} picks today
+              </div>
+            )}
             {liveN > 0 && (
               <div className="badge-live" role="status" aria-live="polite" aria-label={`${liveN} match${liveN > 1 ? "es" : ""} live`}>
                 <span className="live-dot" aria-hidden="true" />
@@ -1719,16 +1754,41 @@ export function HomeClient({
                 <div className="panel">
                   <div className="section-header">
                     <h2 className="section-title">Live &amp; Upcoming</h2>
-                    <div className="live-now-pill" aria-live="polite" aria-label={`${liveViewers} people predicting right now`}>
-                      <span className="live-now-dot" aria-hidden="true" />
-                      {liveViewers.toLocaleString()} predicting
-                    </div>
+                    {realStats && realStats.picksToday > 0 && (
+                      <div className="live-now-pill" aria-live="polite" aria-label={`${realStats.picksToday} picks in the last 24h`}>
+                        <span className="live-now-dot" aria-hidden="true" />
+                        {realStats.picksToday} picks today
+                      </div>
+                    )}
                   </div>
+
+                  {/* Issue 11 — group/status filter tabs */}
+                  {!loading && (availableGroups.length > 0 || matches.some(m => m.windows?.some(w => w.status === "OPEN"))) && (
+                    <div className="feed-filter-row" role="tablist" aria-label="Filter matches">
+                      {(["ALL", "OPEN", ...availableGroups] as const).map(f => (
+                        <button
+                          key={f}
+                          role="tab"
+                          aria-selected={feedFilter === f}
+                          className={`feed-filter-tab${feedFilter === f ? " active" : ""}`}
+                          onClick={() => setFeedFilter(f)}
+                        >
+                          {f === "ALL" ? "All" : f === "OPEN" ? "🟢 Open" : `Group ${f}`}
+                        </button>
+                      ))}
+                    </div>
+                  )}
 
                   <div className="match-feed" role="list" aria-label="Match list">
                     {loading
                       ? Array.from({ length: 5 }).map((_, i) => <SkeletonMatchCard key={i} />)
-                      : matches.slice(0, 10).map((m, idx) => {
+                      : filteredMatches.length === 0 ? (
+                        <div className="feed-empty">
+                          <span>No matches in Group {feedFilter}</span>
+                          <button className="feed-empty-reset" onClick={() => setFeedFilter("ALL")}>Show all →</button>
+                        </div>
+                      ) : filteredMatches.slice(0, 10).map((m) => {
+                        const idx = matches.indexOf(m);
                         const sl = matchStatus(m.status);
                         const cd = sl === "UPCOMING" ? countdown(m.kickoffUtc) : null;
                         const isActive = activeIdx === idx;
@@ -1816,15 +1876,17 @@ export function HomeClient({
 
                   {/* KPI strip — Feature 14: live counters + progress */}
                   <div className="kpi-strip" role="list" aria-label="Tournament statistics">
-                    {/* Tile 1: Total Picks (live counter) */}
+                    {/* Tile 1: Total Picks — real count from DB via /api/activity/stats */}
                     <div className="kpi-tile" role="listitem">
                       <div className="kpi-val">
-                        <span>{picks.toLocaleString()}</span>
+                        <span>{(realStats?.picksTotal ?? picks).toLocaleString()}</span>
                       </div>
                       <div className="kpi-label">Total Picks</div>
-                      <div className="kpi-trend" aria-label={`${picksToday} picks today`}>
-                        ↑ {picksToday} today
-                      </div>
+                      {realStats && realStats.picksToday > 0 && (
+                        <div className="kpi-trend" aria-label={`${realStats.picksToday} picks in the last 24h`}>
+                          ↑ {realStats.picksToday} today
+                        </div>
+                      )}
                     </div>
                     {/* Tile 2: Open Windows (unique info not shown elsewhere) */}
                     <div className="kpi-tile" role="listitem">
@@ -1850,13 +1912,53 @@ export function HomeClient({
                         <div className="kpi-progress-fill" style={{ width: `${Math.round(finishedN / 104 * 100)}%` }} />
                       </div>
                     </div>
-                    {/* Tile 4: Live viewers (Feature 15) */}
+                    {/* Tile 4: Players — real user count from DB (honest!) */}
                     <div className="kpi-tile" role="listitem">
                       <div className="kpi-val">
-                        <span className="kpi-dot kpi-dot-green" aria-hidden="true" />
-                        <span style={{ fontSize: "1.1rem" }}>{liveViewers.toLocaleString()}</span>
+                        <span>{(realStats?.usersTotal ?? liveViewers).toLocaleString()}</span>
                       </div>
-                      <div className="kpi-label">Predicting now</div>
+                      <div className="kpi-label">Players</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Issue 14 — Tournament Progress moved here (left col, prominent) */}
+                <div className="panel tourney-progress-panel" style={{ marginTop: "var(--space-4)" }}>
+                  <div className="section-header">
+                    <h2 className="section-title">⚽ Tournament Progress</h2>
+                    <span className="section-action">WC2026</span>
+                  </div>
+                  <div className="tourney-stage-list" role="list">
+                    {ALL_STAGES.map(stage => {
+                      const meta = STAGE_META[stage];
+                      const data = bracketMap[stage];
+                      const played = data?.matches.filter((m: { status?: string }) => m.status === "FINISHED").length ?? 0;
+                      const scheduled = data?.matches.length ?? 0;
+                      const total = meta.total;
+                      const pct = Math.round(played / total * 100);
+                      const isEmpty = scheduled === 0;
+                      return (
+                        <div key={stage} className={`tourney-stage-row${isEmpty ? " tourney-stage-pending" : ""}`} role="listitem">
+                          <span className="ts-icon" aria-hidden="true">{meta.icon}</span>
+                          <span className="ts-name">{stageLabel(stage)}</span>
+                          <div className="ts-bar" role="progressbar" aria-valuenow={played} aria-valuemax={total} aria-label={`${stageLabel(stage)}: ${played} of ${total} played`}>
+                            <div className="ts-bar-sched" style={{ width: `${Math.round(scheduled / total * 100)}%` }} />
+                            <div className="ts-bar-done" style={{ width: `${pct}%`, "--bc": meta.color } as React.CSSProperties} />
+                          </div>
+                          <span className="ts-stat">
+                            {isEmpty ? <span className="ts-pending">Soon</span> : <>{played}<span className="ts-total">/{total}</span></>}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="tourney-overall">
+                    <div className="tourney-overall-bar" role="progressbar" aria-valuenow={finishedN} aria-valuemax={104} aria-label={`Overall: ${finishedN} of 104 matches played`}>
+                      <div className="tourney-overall-fill" style={{ width: `${Math.round(finishedN / 104 * 100)}%` }} />
+                    </div>
+                    <div className="tourney-overall-label">
+                      <span>{finishedN} of 104 matches played</span>
+                      <span className="tourney-overall-pct">{Math.round(finishedN / 104 * 100)}%</span>
                     </div>
                   </div>
                 </div>
@@ -1895,6 +1997,23 @@ export function HomeClient({
                         <div className="predict-matchup-meta">
                           {stageLabel(activeMatch.stage)} · Match {activeMatch.matchNumber} · {activeMatch.stadium?.city}
                         </div>
+                        {/* Issue 12 — show existing pick prominently at top of panel */}
+                        {submitted && (
+                          <div className="already-picked-banner" role="status">
+                            <span className="apb-check">✅</span>
+                            <span className="apb-text">
+                              Your pick:{" "}
+                              <strong>
+                                {submitted === "HOME"
+                                  ? `${flag(activeMatch.homeSlot?.label ?? "")} ${activeMatch.homeSlot?.label ?? "Home"} Win`
+                                  : submitted === "AWAY"
+                                  ? `${activeMatch.awaySlot?.label ?? "Away"} ${flag(activeMatch.awaySlot?.label ?? "")} Win`
+                                  : "Draw"}
+                              </strong>
+                            </span>
+                            <span className="apb-pts">+3 pts if correct</span>
+                          </div>
+                        )}
                         <span className={`window-badge ${openWindow ? "window-open" : "window-locked"}`} role="status">
                           {openWindow ? <>🟢 Window open — {openWindow.kind.replaceAll("_", " ")}</> : <>🔒 Locked · opens 24h before kickoff</>}
                         </span>
@@ -2013,7 +2132,7 @@ export function HomeClient({
                   )}
 
                   <button
-                    className={`share-btn ${submitted ? "share-btn-active" : "share-btn-inactive"}`}
+                    className={`share-btn ${submitted ? "share-btn-active" : "share-btn-inactive"}${pickFlash ? " share-btn-pulse" : ""}`}
                     onClick={async () => {
                       if (!submitted || !activeMatch) return;
                       const home = activeMatch.homeSlot?.label ?? "Home";
@@ -2023,9 +2142,9 @@ export function HomeClient({
                         submitted === "HOME" ? `${home} to win`
                         : submitted === "AWAY" ? `${away} to win`
                         : "a Draw";
-                      // Deep link → match page with pick + optional ref
-                      const ref = encodeURIComponent("me"); // swap for real username when auth works
-                      const deepUrl = `${SITE}/match/${slug}?ref=${ref}&pick=${submitted}`;
+                      // Deep link → match page with pick + optional ref (real display name)
+                      const refName = sessionDisplayName || "a friend";
+                      const deepUrl = `${SITE}/match/${slug}?ref=${encodeURIComponent(refName)}&pick=${submitted}`;
                       const shareText = `⚽ I picked ${pickLabel} — ${home} vs ${away} · WC2026\nCan you beat me? 🏆\n${deepUrl}`;
                       try {
                         // Use Web Share API when available (mobile)
@@ -2084,60 +2203,6 @@ export function HomeClient({
                       ))}
                     </div>
                   )}
-                </div>
-                {/* Tournament progress visualization — Issue 20 */}
-                <div className="panel tourney-progress-panel" style={{ marginTop: "var(--space-4)" }}>
-                  <div className="section-header">
-                    <h2 className="section-title">⚽ Tournament Progress</h2>
-                    <span className="section-action">WC2026</span>
-                  </div>
-                  <div className="tourney-stage-list" role="list">
-                    {ALL_STAGES.map(stage => {
-                      const meta = STAGE_META[stage];
-                      const data = bracketMap[stage];
-                      const played = data?.matches.filter((m: { status?: string }) => m.status === "FINISHED").length ?? 0;
-                      const scheduled = data?.matches.length ?? 0;
-                      const total = meta.total;
-                      const pct = Math.round(played / total * 100);
-                      const isEmpty = scheduled === 0;
-                      return (
-                        <div
-                          key={stage}
-                          className={`tourney-stage-row${isEmpty ? " tourney-stage-pending" : ""}`}
-                          role="listitem"
-                        >
-                          <span className="ts-icon" aria-hidden="true">{meta.icon}</span>
-                          <span className="ts-name">{stageLabel(stage)}</span>
-                          <div
-                            className="ts-bar"
-                            role="progressbar"
-                            aria-valuenow={played}
-                            aria-valuemax={total}
-                            aria-label={`${stageLabel(stage)}: ${played} of ${total} played`}
-                          >
-                            <div className="ts-bar-sched" style={{ width: `${Math.round(scheduled / total * 100)}%` }} />
-                            <div className="ts-bar-done" style={{ width: `${pct}%`, "--bc": meta.color } as React.CSSProperties} />
-                          </div>
-                          <span className="ts-stat">
-                            {isEmpty ? (
-                              <span className="ts-pending">Soon</span>
-                            ) : (
-                              <>{played}<span className="ts-total">/{total}</span></>
-                            )}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="tourney-overall">
-                    <div className="tourney-overall-bar" role="progressbar" aria-valuenow={finishedN} aria-valuemax={104} aria-label={`Overall: ${finishedN} of 104 matches played`}>
-                      <div className="tourney-overall-fill" style={{ width: `${Math.round(finishedN / 104 * 100)}%` }} />
-                    </div>
-                    <div className="tourney-overall-label">
-                      <span>{finishedN} of 104 matches played</span>
-                      <span className="tourney-overall-pct">{Math.round(finishedN / 104 * 100)}%</span>
-                    </div>
-                  </div>
                 </div>
               </section>
             </div>
@@ -2213,12 +2278,12 @@ export function HomeClient({
           <div className="hiw-modal">
             <button className="hiw-close" onClick={() => setShowHowItWorks(false)} aria-label="Close">✕</button>
             <h2 className="hiw-title">How it works</h2>
-            <p className="hiw-subtitle">World Cup 2026 pick&apos;em in 3 simple steps</p>
+            <p className="hiw-subtitle">World Cup 2026 pick&apos;em — all 104 matches</p>
             <div className="hiw-steps">
               {([
-                { n: "01", icon: "⚽", title: "Pick a match", desc: "Select any upcoming match from the feed. Predict Home win, Draw, or Away win." },
-                { n: "02", icon: "🏆", title: "Earn points", desc: "Correct picks earn +3 pts. Streak bonuses multiply your score." },
-                { n: "03", icon: "🌍", title: "Climb the table", desc: "Compete on the global leaderboard across all 104 World Cup matches." },
+                { n: "01", icon: "⚽", title: "Pick a match", desc: "Select any upcoming match from the feed. Predict Home win, Draw, or Away win before kick-off." },
+                { n: "02", icon: "🏆", title: "Earn points", desc: "Correct picks earn +3 pts. Build a winning streak for bonus points: +1 per correct pick in a row, up to +5." },
+                { n: "03", icon: "🌍", title: "Climb the table", desc: "Compete on the global leaderboard across all 104 World Cup matches. Top players at the end win!" },
               ] as const).map(s => (
                 <div key={s.n} className="hiw-step">
                   <div className="hiw-step-icon">{s.icon}</div>
@@ -2229,6 +2294,40 @@ export function HomeClient({
                   </div>
                 </div>
               ))}
+            </div>
+            {/* Scoring details */}
+            <div className="hiw-scoring">
+              <h3 className="hiw-scoring-title">Points & Windows</h3>
+              <div className="hiw-scoring-grid">
+                <div className="hiw-scoring-item">
+                  <span className="hiw-scoring-icon">🎯</span>
+                  <div>
+                    <strong>+3 pts</strong>
+                    <span>Correct pick</span>
+                  </div>
+                </div>
+                <div className="hiw-scoring-item">
+                  <span className="hiw-scoring-icon">🔥</span>
+                  <div>
+                    <strong>+1–5 pts</strong>
+                    <span>Streak bonus</span>
+                  </div>
+                </div>
+                <div className="hiw-scoring-item">
+                  <span className="hiw-scoring-icon">🟢</span>
+                  <div>
+                    <strong>Window opens</strong>
+                    <span>24h before kick-off</span>
+                  </div>
+                </div>
+                <div className="hiw-scoring-item">
+                  <span className="hiw-scoring-icon">🔒</span>
+                  <div>
+                    <strong>Window locks</strong>
+                    <span>At kick-off</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Email capture (Feature 9) */}

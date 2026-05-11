@@ -4359,3 +4359,233 @@ kbd {
   transform: translateY(-1px);
   box-shadow: 0 6px 20px rgba(0,102,255,0.35);
 }
+
+/* ═══════════════════════════════════════════════════════
+   ISSUE 11 — MATCH FEED FILTER TABS
+═══════════════════════════════════════════════════════ */
+.feed-filter-row {
+  display: flex;
+  gap: 6px;
+  padding: 0 0 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.feed-filter-row::-webkit-scrollbar { display: none; }
+.feed-filter-tab {
+  flex-shrink: 0;
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: var(--font-body);
+  white-space: nowrap;
+}
+.feed-filter-tab:hover {
+  border-color: var(--border-brand);
+  color: var(--text-primary);
+}
+.feed-filter-tab.active {
+  background: rgba(0,102,255,0.12);
+  border-color: var(--brand-mid);
+  color: var(--brand-light);
+  font-weight: 700;
+}
+.feed-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 16px;
+  color: var(--text-tertiary);
+  font-size: 0.82rem;
+  gap: 12px;
+}
+.feed-empty-reset {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--brand-light);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+/* ═══════════════════════════════════════════════════════
+   ISSUE 12 — ALREADY-PICKED BANNER IN PREDICT PANEL
+═══════════════════════════════════════════════════════ */
+.already-picked-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0,232,122,0.08);
+  border: 1px solid rgba(0,232,122,0.22);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.apb-check { font-size: 1rem; flex-shrink: 0; }
+.apb-text {
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+}
+.apb-text strong { color: var(--accent-green); }
+.apb-pts {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--brand-light);
+  background: rgba(0,102,255,0.12);
+  border-radius: 10px;
+  padding: 2px 8px;
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════════
+   ISSUE 13 — SHARE BUTTON PULSE ON FRESH PICK
+═══════════════════════════════════════════════════════ */
+@keyframes sharePulse {
+  0%   { box-shadow: 0 0 0 0 rgba(0,102,255,0.6); }
+  60%  { box-shadow: 0 0 0 10px rgba(0,102,255,0); }
+  100% { box-shadow: 0 0 0 0 rgba(0,102,255,0); }
+}
+.share-btn-pulse {
+  animation: sharePulse 0.9s ease forwards;
+}
+
+/* ═══════════════════════════════════════════════════════
+   ISSUE 16 — HOW IT WORKS MODAL SCORING SECTION
+═══════════════════════════════════════════════════════ */
+.hiw-scoring {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  margin-bottom: 20px;
+}
+.hiw-scoring-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin: 0 0 12px;
+}
+.hiw-scoring-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.hiw-scoring-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+}
+.hiw-scoring-icon { font-size: 1.1rem; flex-shrink: 0; }
+.hiw-scoring-item div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hiw-scoring-item strong {
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  font-weight: 700;
+}
+.hiw-scoring-item span {
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+}
+
+/* ═══════════════════════════════════════════════════════
+   ISSUE 17 — RELATED MATCHES (INTERNAL LINKING)
+═══════════════════════════════════════════════════════ */
+.match-page-related {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 28px 20px 0;
+}
+.match-page-related h2 {
+  font-size: 1rem;
+  font-weight: 800;
+  font-family: var(--font-display);
+  color: var(--text-primary);
+  margin: 0 0 14px;
+}
+.related-matches-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.related-match-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+.related-match-card:hover {
+  border-color: var(--border-brand);
+  background: rgba(0,102,255,0.05);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0,102,255,0.12);
+}
+.rmc-teams {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.rmc-vs {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+.rmc-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+}
+.rmc-status { font-weight: 600; }
+.rmc-live { color: #ff5050; }
+.rmc-ft { color: var(--accent-green); }
+.rmc-arrow { color: var(--brand-light); font-size: 0.7rem; }
+.related-home-link {
+  text-align: center;
+  padding: 8px 0 4px;
+}
+.related-home-link a {
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.related-home-link a:hover { color: var(--brand-light); }
+
+/* ═══════════════════════════════════════════════════════
+   ISSUE 18 — MATCH PAGE WRAPPER (was missing class)
+═══════════════════════════════════════════════════════ */
+.match-page-wrapper {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 0 60px;
+}

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
+import type { MatchStage } from "@prisma/client";
 import { MatchPickPanel } from "./pick-panel";
 
 export const revalidate = 60; // ISR — refresh every minute
@@ -87,6 +88,32 @@ async function getMatchBySlug(slug: string) {
       matchSlug(m.homeSlot?.label ?? "", m.awaySlot?.label ?? "") === slug
     ) ?? null;
   } catch { return null; }
+}
+
+/** Fetch other matches from the same stage for internal linking */
+async function getRelatedMatches(matchId: string, stage: MatchStage, groupCode: string | null) {
+  try {
+    const where = groupCode
+      ? {
+          stage,
+          id: { not: matchId },
+          OR: [
+            { homeSlot: { groupCode } },
+            { awaySlot: { groupCode } },
+          ],
+        }
+      : { stage, id: { not: matchId } };
+
+    return await prisma.match.findMany({
+      where,
+      orderBy: { kickoffUtc: "asc" },
+      take: 6,
+      include: {
+        homeSlot: { select: { label: true } },
+        awaySlot: { select: { label: true } },
+      },
+    });
+  } catch { return []; }
 }
 
 async function getPickDistribution(windowId: string) {
@@ -196,8 +223,14 @@ export default async function MatchPage({
   const isUpcoming = !isLive && !isFt;
   const openWindow  = match.windows?.find((w: { status: string }) => w.status === "OPEN");
 
-  // Server-side pick distribution for open window
-  const distribution = openWindow ? await getPickDistribution(openWindow.id) : null;
+  // Derive group code from homeSlot for same-group linking
+  const groupCode = match.homeSlot?.groupCode ?? null;
+
+  // Server-side pick distribution for open window + related matches (parallel)
+  const [distribution, relatedMatches] = await Promise.all([
+    openWindow ? getPickDistribution(openWindow.id) : Promise.resolve(null),
+    getRelatedMatches(match.id, match.stage as MatchStage, groupCode),
+  ]);
   const totalPicks = distribution?.total ?? 0;
 
   const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://worldcupclutch.com";
@@ -468,6 +501,48 @@ export default async function MatchPage({
             Sign in with Google to save your picks and track your rank across the tournament.
           </p>
         </section>
+
+        {/* ── Issue 17: Internal linking — related matches ── */}
+        {relatedMatches.length > 0 && (
+          <section className="match-page-related" aria-label="Related matches">
+            <h2>
+              {groupCode
+                ? `More Group ${groupCode} Matches`
+                : `More ${stageLabel(match.stage)} Matches`}
+            </h2>
+            <div className="related-matches-grid">
+              {relatedMatches.map(rm => {
+                const rmHome = rm.homeSlot?.label ?? "Home";
+                const rmAway = rm.awaySlot?.label ?? "Away";
+                const rmSlug = matchSlug(rmHome, rmAway);
+                const rmIsLive = ["LIVE","HALFTIME","EXTRA_TIME","PENALTIES"].includes(rm.status);
+                const rmIsFt = rm.status === "FINISHED";
+                return (
+                  <Link key={rm.id} href={`/match/${rmSlug}`} className="related-match-card">
+                    <div className="rmc-teams">
+                      <span>{flag(rmHome)} {rmHome}</span>
+                      <span className="rmc-vs">
+                        {rmIsLive || rmIsFt
+                          ? <strong>{rm.homeScore ?? 0}–{rm.awayScore ?? 0}</strong>
+                          : "vs"}
+                      </span>
+                      <span>{rmAway} {flag(rmAway)}</span>
+                    </div>
+                    <div className="rmc-meta">
+                      <span className={`rmc-status${rmIsLive ? " rmc-live" : rmIsFt ? " rmc-ft" : ""}`}>
+                        {rmIsLive ? "🔴 LIVE" : rmIsFt ? "FT" : rm.kickoffUtc ? fmtDateShort(rm.kickoffUtc) : "Upcoming"}
+                      </span>
+                      <span className="rmc-arrow">→</span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+            <div className="related-home-link">
+              <Link href="/">← All {stageLabel(match.stage)} matches on WorldCupClutch</Link>
+            </div>
+          </section>
+        )}
       </div>
     </>
   );

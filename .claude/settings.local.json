@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Depth 2 -Name)",
+      "Bash(npx tsc *)",
+      "Bash(echo \"Exit code: $?\")",
+      "Bash(echo \"Exit: $?\")",
+      "Bash(mkdir -p \"/c/Users/Lenovo/Desktop/WC2026/.claude/worktrees/gallant-chaplygin-419bd9/src/app/match/[slug]\")",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git reset *)",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(git pull *)",
+      "Bash(dir \"C:\\\\Users\\\\Lenovo\\\\Desktop\\\\WC2026\\\\.claude\\\\worktrees\\\\gallant-chaplygin-419bd9\\\\public\")"
+    ]
+  }
+}
