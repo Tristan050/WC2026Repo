@@ -2,6 +2,9 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
+import { MatchPickPanel } from "./pick-panel";
+
+export const revalidate = 60; // ISR — refresh every minute
 
 /* ─── Slug helpers ─── */
 function toSlug(label: string): string {
@@ -18,7 +21,11 @@ const FLAGS: Record<string, string> = {
   morocco:"🇲🇦", senegal:"🇸🇳", ecuador:"🇪🇨", uruguay:"🇺🇾", colombia:"🇨🇴",
   croatia:"🇭🇷", ghana:"🇬🇭", switzerland:"🇨🇭", "south africa":"🇿🇦",
   "saudi arabia":"🇸🇦", "korea republic":"🇰🇷", "ir iran":"🇮🇷", panama:"🇵🇦",
-  austria:"🇦🇹", turkey:"🇹🇷", turkiye:"🇹🇷",
+  austria:"🇦🇹", turkey:"🇹🇷", turkiye:"🇹🇷", norway:"🇳🇴", sweden:"🇸🇪",
+  scotland:"🏴󠁧󠁢󠁳󠁣󠁴󠁿", qatar:"🇶🇦", "cote d'ivoire":"🇨🇮", "cabo verde":"🇨🇻",
+  "new zealand":"🇳🇿", czechia:"🇨🇿", "congo dr":"🇨🇩", algeria:"🇩🇿",
+  jordan:"🇯🇴", iraq:"🇮🇶", uzbekistan:"🇺🇿", curacao:"🇨🇼", haiti:"🇭🇹",
+  tunisia:"🇹🇳", egypt:"🇪🇬", iran:"🇮🇷", paraguay:"🇵🇾", chile:"🇨🇱",
 };
 function flag(label: string): string {
   const l = label.toLowerCase();
@@ -31,11 +38,18 @@ function stageLabel(s: string): string {
     THIRD_PLACE:"Third Place", FINAL:"Final 🏆" }[s] ?? s.replaceAll("_"," "));
 }
 
-function fmtDate(utc: string | Date): string {
+function fmtDate(utc: Date): string {
   return new Intl.DateTimeFormat("en-US", {
     weekday:"long", day:"numeric", month:"long", year:"numeric",
     hour:"2-digit", minute:"2-digit", timeZoneName:"short", hour12:false,
-  }).format(utc instanceof Date ? utc : new Date(utc));
+  }).format(utc);
+}
+
+function fmtDateShort(utc: Date): string {
+  return new Intl.DateTimeFormat("en-US", {
+    day:"numeric", month:"short", year:"numeric",
+    hour:"2-digit", minute:"2-digit", hour12:false,
+  }).format(utc);
 }
 
 function probsFromOdds(h?: number|null, d?: number|null, a?: number|null) {
@@ -56,9 +70,7 @@ async function getAllMatches() {
         awaySlot: { select: { label: true } },
       },
     });
-  } catch {
-    return [];
-  }
+  } catch { return []; }
 }
 
 async function getMatchBySlug(slug: string) {
@@ -74,9 +86,23 @@ async function getMatchBySlug(slug: string) {
     return all.find(m =>
       matchSlug(m.homeSlot?.label ?? "", m.awaySlot?.label ?? "") === slug
     ) ?? null;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
+}
+
+async function getPickDistribution(windowId: string) {
+  try {
+    const counts = await prisma.userPick.groupBy({
+      by: ["choice"],
+      where: { predictionWindowId: windowId },
+      _count: { choice: true },
+    });
+    const map: Record<string, number> = {};
+    for (const r of counts) map[r.choice] = r._count.choice;
+    const home = map["HOME"] ?? 0;
+    const draw = map["DRAW"] ?? 0;
+    const away = map["AWAY"] ?? 0;
+    return { home, draw, away, total: home + draw + away };
+  } catch { return null; }
 }
 
 /* ─── generateStaticParams ─── */
@@ -101,9 +127,11 @@ export async function generateMetadata({
   const away = match.awaySlot?.label ?? "Away";
   const stage = stageLabel(match.stage);
   const city = match.stadium?.city ?? "";
+  const stadium = match.stadium?.name ?? "";
+  const dateStr = match.kickoffUtc ? fmtDateShort(match.kickoffUtc) : "";
 
   const title = `${home} vs ${away} — World Cup 2026 ${stage} Prediction | WorldCupClutch`;
-  const description = `Predict the winner of ${home} vs ${away} at FIFA World Cup 2026 ${stage}${city ? ` in ${city}` : ""}. Free pick'em game — join thousands of fans competing on the global leaderboard.`;
+  const description = `Predict the winner of ${home} vs ${away} at the FIFA World Cup 2026 ${stage}${city ? ` in ${city}` : ""}${dateStr ? ` on ${dateStr}` : ""}. Free pick'em game — join thousands of fans competing on the global leaderboard.`;
 
   const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://worldcupclutch.com";
   const ogUrl = `${SITE}/api/og?home=${encodeURIComponent(home)}&away=${encodeURIComponent(away)}&stage=${encodeURIComponent(stage)}&status=${match.status}`;
@@ -111,12 +139,26 @@ export async function generateMetadata({
   return {
     title,
     description,
+    keywords: [
+      `${home} vs ${away}`,
+      `${home} vs ${away} prediction`,
+      `${home} vs ${away} World Cup 2026`,
+      `${home} vs ${away} odds`,
+      `World Cup 2026 ${stage}`,
+      `${city} World Cup match`,
+      stadium,
+      "World Cup 2026 prediction",
+      "FIFA 2026 pick em",
+      "WorldCupClutch",
+    ].filter(Boolean),
     alternates: { canonical: `/match/${slug}` },
     openGraph: {
+      type: "website",
       title,
       description,
       url: `${SITE}/match/${slug}`,
-      images: [{ url: ogUrl, width: 1200, height: 630 }],
+      siteName: "WorldCupClutch",
+      images: [{ url: ogUrl, width: 1200, height: 630, alt: `${home} vs ${away} — WC 2026` }],
     },
     twitter: {
       card: "summary_large_image",
@@ -154,11 +196,57 @@ export default async function MatchPage({
   const isUpcoming = !isLive && !isFt;
   const openWindow  = match.windows?.find((w: { status: string }) => w.status === "OPEN");
 
+  // Server-side pick distribution for open window
+  const distribution = openWindow ? await getPickDistribution(openWindow.id) : null;
+  const totalPicks = distribution?.total ?? 0;
+
   const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://worldcupclutch.com";
+  const stage = stageLabel(match.stage);
+
+  // Structured data
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SportsEvent",
+        name: `${home} vs ${away}`,
+        description: `FIFA World Cup 2026 ${stage} — ${home} vs ${away}. Predict the winner on WorldCupClutch.`,
+        startDate: match.kickoffUtc,
+        eventStatus: isFt
+          ? "https://schema.org/EventScheduled"
+          : "https://schema.org/EventScheduled",
+        location: {
+          "@type": "Place",
+          name: match.stadium?.name ?? "TBD",
+          address: {
+            "@type": "PostalAddress",
+            addressLocality: match.stadium?.city ?? "",
+            addressCountry: "US",
+          },
+        },
+        competitor: [
+          { "@type": "SportsTeam", name: home },
+          { "@type": "SportsTeam", name: away },
+        ],
+        url: `${SITE}/match/${slug}`,
+        organizer: { "@type": "Organization", name: "FIFA", url: "https://www.fifa.com" },
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "WorldCupClutch", item: SITE },
+          { "@type": "ListItem", position: 2, name: "Matches", item: `${SITE}/#matches` },
+          { "@type": "ListItem", position: 3, name: `${home} vs ${away}`, item: `${SITE}/match/${slug}` },
+        ],
+      },
+    ],
+  };
 
   return (
     <>
-      {/* Challenge banner — shown when ?ref=X is in the URL */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+
+      {/* Challenge banner */}
       {challengeRef && (
         <div className="challenge-banner" role="alert">
           <span className="challenge-banner-icon" aria-hidden="true">🏆</span>
@@ -176,45 +264,22 @@ export default async function MatchPage({
               </span>
             )}
           </div>
-          <a href={`/?predict=${match.id}`} className="challenge-banner-pick-btn">
-            Make your pick →
-          </a>
         </div>
       )}
 
-      {/* Inline JSON-LD for this specific match */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "SportsEvent",
-            name: `${home} vs ${away}`,
-            startDate: match.kickoffUtc,
-            location: {
-              "@type": "Place",
-              name: match.stadium?.name ?? "TBD",
-              address: { "@type": "PostalAddress", addressLocality: match.stadium?.city ?? "" },
-            },
-            competitor: [
-              { "@type": "SportsTeam", name: home },
-              { "@type": "SportsTeam", name: away },
-            ],
-            url: `${SITE}/match/${slug}`,
-            description: `FIFA World Cup 2026 ${stageLabel(match.stage)} — ${home} vs ${away}`,
-          }),
-        }}
-      />
-
       <div className="match-page-wrapper">
-        {/* Back link */}
-        <Link href="/" className="match-page-back">← WorldCupClutch</Link>
+        {/* Back link + breadcrumb */}
+        <nav className="match-page-nav" aria-label="Breadcrumb">
+          <Link href="/" className="match-page-back">← WorldCupClutch</Link>
+          <span className="match-page-nav-sep" aria-hidden="true">/</span>
+          <span className="match-page-nav-current">{home} vs {away}</span>
+        </nav>
 
         {/* SEO H1 */}
         <h1 className="match-page-h1">
           {flag(home)} {home} vs {away} {flag(away)}
           <span className="match-page-subtitle">
-            World Cup 2026 {stageLabel(match.stage)} Prediction
+            World Cup 2026 {stage} Prediction
           </span>
         </h1>
 
@@ -224,7 +289,7 @@ export default async function MatchPage({
             <span className={`match-page-badge ${isLive ? "badge-live-mp" : isFt ? "badge-ft-mp" : "badge-upcoming-mp"}`}>
               {isLive ? "🔴 LIVE" : isFt ? "✓ Full Time" : "⏰ Upcoming"}
             </span>
-            <span className="match-page-stage">{stageLabel(match.stage)}</span>
+            <span className="match-page-stage">{stage}</span>
             {match.matchNumber && (
               <span className="match-page-stage">Match #{match.matchNumber}</span>
             )}
@@ -261,52 +326,146 @@ export default async function MatchPage({
           {probs && (
             <div className="match-page-odds">
               <div className="match-page-odds-bar">
-                <div style={{ width: `${probs.h}%`, background: "#3385ff", height: "100%", borderRadius: "4px 0 0 4px" }} />
-                <div style={{ width: `${probs.d}%`, background: "#4a6a8a", height: "100%" }} />
-                <div style={{ width: `${probs.a}%`, background: "#ff6b35", height: "100%", borderRadius: "0 4px 4px 0" }} />
+                <div style={{ width:`${probs.h}%`, background:"#3385ff", height:"100%", borderRadius:"4px 0 0 4px" }} />
+                <div style={{ width:`${probs.d}%`, background:"#4a6a8a", height:"100%" }} />
+                <div style={{ width:`${probs.a}%`, background:"#ff6b35", height:"100%", borderRadius:"0 4px 4px 0" }} />
               </div>
               <div className="match-page-odds-labels">
-                <span style={{ color: "#3385ff" }}>{probs.h}% Home</span>
-                <span style={{ color: "#4a6a8a" }}>{probs.d}% Draw</span>
-                <span style={{ color: "#ff6b35" }}>{probs.a}% Away</span>
+                <span style={{ color:"#3385ff" }}>{probs.h}% {home}</span>
+                <span style={{ color:"#4a6a8a" }}>{probs.d}% Draw</span>
+                <span style={{ color:"#ff6b35" }}>{probs.a}% {away}</span>
               </div>
             </div>
           )}
         </div>
 
-        {/* Pick CTA */}
-        <div className="match-page-cta-box">
-          {openWindow ? (
-            <>
-              <p className="match-page-cta-label">🟢 Prediction window is open!</p>
-              <a href={`/?predict=${match.id}`} className="match-page-cta-btn">
-                Make your pick →
-              </a>
-            </>
-          ) : (
-            <>
-              <p className="match-page-cta-label">
-                {isFt ? "This match has ended." : "Prediction window opens 24h before kickoff."}
-              </p>
-              <a href="/" className="match-page-cta-btn">
-                Browse all matches →
-              </a>
-            </>
-          )}
-        </div>
+        {/* ── Inline Pick Panel (replaces "go to homepage" CTA) ── */}
+        {openWindow ? (
+          <MatchPickPanel
+            matchId={match.id}
+            windowId={openWindow.id}
+            home={home}
+            away={away}
+          />
+        ) : (
+          <div className="match-page-cta-box">
+            <p className="match-page-cta-label">
+              {isFt
+                ? "This match has ended."
+                : "🔒 Prediction window opens 24 hours before kickoff."}
+            </p>
+            <Link href="/" className="match-page-cta-btn">
+              Browse all matches →
+            </Link>
+          </div>
+        )}
 
-        {/* SEO copy */}
+        {/* ── Venue & match details ── */}
+        <section className="match-page-details" aria-label="Match details">
+          <h2>Match Details</h2>
+          <dl className="match-detail-grid">
+            {match.stadium?.name && (
+              <>
+                <dt>Venue</dt>
+                <dd>🏟 {match.stadium.name}{match.stadium.city ? `, ${match.stadium.city}` : ""}</dd>
+              </>
+            )}
+            {match.kickoffUtc && (
+              <>
+                <dt>Kick-off</dt>
+                <dd>🗓 {fmtDate(match.kickoffUtc)}</dd>
+              </>
+            )}
+            <dt>Stage</dt>
+            <dd>⚽ {stage}</dd>
+            {match.matchNumber && (
+              <>
+                <dt>Match</dt>
+                <dd>#{match.matchNumber} of 104</dd>
+              </>
+            )}
+            {totalPicks > 0 && (
+              <>
+                <dt>Predictions</dt>
+                <dd>🎯 {totalPicks.toLocaleString()} picks submitted</dd>
+              </>
+            )}
+            {probs && (
+              <>
+                <dt>Favourite</dt>
+                <dd>
+                  {probs.h > probs.a
+                    ? `${flag(home)} ${home} (${probs.h}% implied)`
+                    : probs.a > probs.h
+                    ? `${flag(away)} ${away} (${probs.a}% implied)`
+                    : "Even match"}
+                </dd>
+              </>
+            )}
+          </dl>
+        </section>
+
+        {/* ── Community picks (server-rendered snapshot) ── */}
+        {distribution && distribution.total > 0 && (
+          <section className="match-page-community" aria-label="Community predictions">
+            <h2>Community Predictions</h2>
+            <p className="mp-community-sub">{distribution.total.toLocaleString()} players have predicted this match</p>
+            {(["HOME", "DRAW", "AWAY"] as const).map(c => {
+              const count = c === "HOME" ? distribution.home : c === "DRAW" ? distribution.draw : distribution.away;
+              const pct = distribution.total > 0 ? Math.round(count / distribution.total * 100) : 0;
+              const label = c === "HOME" ? `${flag(home)} ${home} Win` : c === "AWAY" ? `${away} Win ${flag(away)}` : "Draw";
+              return (
+                <div key={c} className="mp-community-row">
+                  <span className="mp-community-label">{label}</span>
+                  <div className="mp-community-bar">
+                    <div className="mp-community-fill" style={{ width:`${pct}%` }} />
+                  </div>
+                  <span className="mp-community-pct">{pct}%</span>
+                </div>
+              );
+            })}
+          </section>
+        )}
+
+        {/* ── SEO content ── */}
         <section className="match-page-seo">
-          <h2>About this match</h2>
+          <h2>About {home} vs {away} — World Cup 2026</h2>
           <p>
-            {home} takes on {away} in the {stageLabel(match.stage)} of the FIFA World Cup 2026,
-            hosted across the United States, Canada and Mexico.
-            {match.stadium?.city ? ` This fixture is played in ${match.stadium.city}.` : ""}
-            {probs ? ` Based on current odds, ${home} are the ${probs.h > probs.a ? "favourites" : probs.a > probs.h ? "underdogs" : "even"} with a ${probs.h}% implied win probability.` : ""}
+            <strong>{home}</strong> takes on <strong>{away}</strong> in the <strong>{stage}</strong> of
+            the FIFA World Cup 2026, hosted across the United States, Canada, and Mexico.
+            {match.stadium?.name
+              ? ` This fixture is played at ${match.stadium.name}${match.stadium.city ? ` in ${match.stadium.city}` : ""}.`
+              : ""}
+            {match.kickoffUtc
+              ? ` Kick-off is scheduled for ${fmtDate(match.kickoffUtc)}.`
+              : ""}
+          </p>
+          {probs && (
+            <p>
+              Based on current market odds, <strong>{home}</strong> hold a <strong>{probs.h}%</strong> implied
+              win probability, <strong>{away}</strong> <strong>{probs.a}%</strong>, with a draw at{" "}
+              <strong>{probs.d}%</strong>.{" "}
+              {probs.h > probs.a + 10
+                ? `${home} enter as clear favourites.`
+                : probs.a > probs.h + 10
+                ? `${away} are the slight favourites despite playing away.`
+                : "The match is expected to be closely contested."}
+            </p>
+          )}
+          <p>
+            The FIFA World Cup 2026 is the first edition to feature <strong>48 teams</strong> and{" "}
+            <strong>104 matches</strong>, spread across 16 host cities in the USA, Canada, and Mexico.
+            {match.stage === "GROUP"
+              ? " In the expanded group stage, each group contains four teams playing three matches each, with the top two advancing to the Round of 32."
+              : match.stage === "FINAL"
+              ? " The 2026 World Cup Final will be played at MetLife Stadium in New York/New Jersey."
+              : ""}
           </p>
           <p>
-            WorldCupClutch is a free pick&rsquo;em prediction game for all 104 World Cup 2026 matches.
-            Predict the winner, earn points, build your streak and compete on the global leaderboard.
+            <strong>WorldCupClutch</strong> is a free pick&rsquo;em prediction game covering all 104
+            World Cup 2026 matches. Predict the winner before kick-off, earn points for correct calls,
+            build a winning streak, and compete on the global leaderboard against fans worldwide.
+            Sign in with Google to save your picks and track your rank across the tournament.
           </p>
         </section>
       </div>

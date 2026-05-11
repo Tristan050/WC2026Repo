@@ -320,9 +320,11 @@ function ProbBar({ home, away, oh, od, oa }: { home: string; away: string; oh?: 
 function BracketTile({ stage, matches, onPress }: { stage: string; matches: BracketStage["matches"]; onPress: () => void }) {
   const m = STAGE_META[stage] ?? STAGE_META.GROUP;
   const done = matches.filter(x => x.status === "FINISHED").length;
-  const filled = Math.min(100, (matches.length / m.total) * 100);
+  const scheduledPct = Math.min(100, (matches.length / m.total) * 100);
   const donePct = Math.min(100, (done / m.total) * 100);
   const empty = matches.length === 0;
+  // Pre-tournament: matches are scheduled but 0 played — show "0 played" not "72/72"
+  const allPreTournament = done === 0 && matches.length > 0;
 
   // Collect unique team flags from this stage's matches (max 8 shown)
   const teamFlags = useMemo(() => {
@@ -346,7 +348,7 @@ function BracketTile({ stage, matches, onPress }: { stage: string; matches: Brac
       className={`bracket-tile${empty ? " coming" : ""}`}
       onClick={empty ? undefined : onPress}
       style={{ "--bc-color": m.color } as React.CSSProperties}
-      aria-label={`${stageLabel(stage)}: ${matches.length} of ${m.total} fixtures`}
+      aria-label={allPreTournament ? `${stageLabel(stage)}: ${matches.length} fixtures scheduled` : `${stageLabel(stage)}: ${done} of ${m.total} played`}
     >
       <div className="bt-top">
         <span className="bt-icon" aria-hidden="true">{m.icon}</span>
@@ -360,8 +362,17 @@ function BracketTile({ stage, matches, onPress }: { stage: string; matches: Brac
       ) : (
         <>
           <div>
-            <span className="bt-count">{matches.length}</span>
-            <span className="bt-total">/{m.total}</span>
+            {allPreTournament ? (
+              <>
+                <span className="bt-count">{matches.length}</span>
+                <span className="bt-total"> fixtures</span>
+              </>
+            ) : (
+              <>
+                <span className="bt-count">{done}</span>
+                <span className="bt-total">/{m.total} played</span>
+              </>
+            )}
           </div>
           {teamFlags.length > 0 && (
             <div className="bt-flags" aria-hidden="true">
@@ -372,8 +383,8 @@ function BracketTile({ stage, matches, onPress }: { stage: string; matches: Brac
             </div>
           )}
           <div className="bt-bar">
-            <div className="bt-bar-fill" style={{ width: `${filled}%` }} />
-            <div className="bt-bar-done" style={{ width: `${donePct}%` }} />
+            <div className="bt-bar-fill" style={{ width: `${allPreTournament ? scheduledPct : donePct}%` }} />
+            {!allPreTournament && <div className="bt-bar-done" style={{ width: `${donePct}%` }} />}
           </div>
         </>
       )}
