@@ -309,10 +309,19 @@ function SkeletonMatchCard() {
 
 /* ─────────────────────── ODDS BAR ─────────────────────── */
 function ProbBar({ home, away, oh, od, oa }: { home: string; away: string; oh?: number | null; od?: number | null; oa?: number | null }) {
-  const hash = (s: string) => s.split("").reduce((x, c) => x + c.charCodeAt(0), 17);
+  // Issue 21: use real odds when available, TEAM_STR as fallback (never hash-based)
   const p = (oh && od && oa)
     ? (() => { const ih = 1 / oh, id = 1 / od, ia = 1 / oa, t = ih + id + ia; return { h: Math.round(ih / t * 100), d: Math.round(id / t * 100), a: Math.round(ia / t * 100) }; })()
-    : (() => { const hv = ((hash(home) % 35) + 28), av = ((hash(away) % 30) + 20), dv = Math.max(8, 100 - hv - av), t = hv + av + dv; return { h: Math.round(hv / t * 100), d: Math.round(dv / t * 100), a: Math.round(av / t * 100) }; })();
+    : (() => {
+        // Team-strength based estimate (home advantage +8%)
+        const hs = teamStr(home) * 1.08, as_ = teamStr(away), total = hs + as_;
+        const diff = Math.abs(hs - as_) / total;
+        const dv = Math.max(10, Math.min(28, Math.round((0.28 - diff * 0.18) * 100)));
+        const remaining = 100 - dv;
+        const hv = Math.round((hs / total) * remaining);
+        const av = remaining - hv;
+        return { h: hv, d: dv, a: av };
+      })();
   return (
     <div className="prob-bar-wrap">
       <div className="prob-bar" role="presentation" aria-label={`Win probability: Home ${p.h}%, Draw ${p.d}%, Away ${p.a}%`}>
@@ -1331,10 +1340,16 @@ export function HomeClient({
   }, [matches]);
 
   const filteredMatches = useMemo(() => {
-    if (feedFilter === "ALL") return matches;
-    if (feedFilter === "OPEN") return matches.filter(m => m.windows?.some(w => w.status === "OPEN"));
-    // Group filter (A–L)
-    return matches.filter(m => m.homeSlot?.groupCode === feedFilter || m.awaySlot?.groupCode === feedFilter);
+    let list = matches;
+    if (feedFilter === "OPEN") list = matches.filter(m => m.windows?.some(w => w.status === "OPEN"));
+    else if (feedFilter !== "ALL") list = matches.filter(m => m.homeSlot?.groupCode === feedFilter || m.awaySlot?.groupCode === feedFilter);
+    // Issue 23: hype matches (kickoff within 24h) bubble to top
+    const now = Date.now();
+    return [...list].sort((a, b) => {
+      const aHype = a.kickoffUtc && (new Date(a.kickoffUtc).getTime() - now) < 86_400_000 && (new Date(a.kickoffUtc).getTime() - now) > 0 ? 1 : 0;
+      const bHype = b.kickoffUtc && (new Date(b.kickoffUtc).getTime() - now) < 86_400_000 && (new Date(b.kickoffUtc).getTime() - now) > 0 ? 1 : 0;
+      return bHype - aHype;
+    });
   }, [matches, feedFilter]);
 
   const activeMatch = matches[activeIdx] ?? null;
@@ -1643,6 +1658,19 @@ export function HomeClient({
             >
               Start Predicting →
             </button>
+
+            {/* Issue 22 — Social proof badge */}
+            {realStats && realStats.usersTotal > 0 && (
+              <div className="hero-social-proof" aria-label="Community size">
+                <span className="hsp-avatars" aria-hidden="true">🧑‍💻👤👥</span>
+                <span className="hsp-text">
+                  <strong>{realStats.usersTotal.toLocaleString()}+</strong> predictors joined
+                  {realStats.picksTotal > 0 && (
+                    <> · <strong>{realStats.picksTotal.toLocaleString()}</strong> picks made</>
+                  )}
+                </span>
+              </div>
+            )}
 
             {/* Issue 7 — inline email capture */}
             {heroEmailStatus !== "done" ? (
