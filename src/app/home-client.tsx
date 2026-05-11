@@ -240,9 +240,11 @@ function playPickSound() {
 function OpenWindowsStrip({
   matches,
   onPickMatch,
+  windowPickCounts,
 }: {
   matches: LiveMatch[];
   onPickMatch: (idx: number) => void;
+  windowPickCounts: Record<string, number>;
 }) {
   const open = matches
     .map((m, idx) => ({ m, idx }))
@@ -255,22 +257,33 @@ function OpenWindowsStrip({
         {open.length} open now
       </span>
       <div className="ow-scroll" role="list">
-        {open.slice(0, 5).map(({ m, idx }) => (
-          <button
-            key={m.id}
-            className="ow-card"
-            role="listitem"
-            onClick={() => onPickMatch(idx)}
-            aria-label={`Pick now: ${m.homeSlot?.label} vs ${m.awaySlot?.label}`}
-          >
-            <span className="ow-teams">
-              {flag(m.homeSlot?.label ?? "")} {m.homeSlot?.label}
-              <span className="ow-vs">vs</span>
-              {m.awaySlot?.label} {flag(m.awaySlot?.label ?? "")}
-            </span>
-            <span className="ow-cta">Pick now →</span>
-          </button>
-        ))}
+        {open.slice(0, 5).map(({ m, idx }) => {
+          const openWin = m.windows?.find(w => w.status === "OPEN");
+          const pickCount = openWin ? (windowPickCounts[openWin.id] ?? 0) : 0;
+          return (
+            <button
+              key={m.id}
+              className="ow-card"
+              role="listitem"
+              onClick={() => onPickMatch(idx)}
+              aria-label={`Pick now: ${m.homeSlot?.label} vs ${m.awaySlot?.label}${pickCount > 0 ? `, ${pickCount} picks` : ""}`}
+            >
+              <span className="ow-teams">
+                {flag(m.homeSlot?.label ?? "")} {m.homeSlot?.label}
+                <span className="ow-vs">vs</span>
+                {m.awaySlot?.label} {flag(m.awaySlot?.label ?? "")}
+              </span>
+              <div className="ow-card-footer">
+                {pickCount > 0 && (
+                  <span className="ow-pick-count" aria-hidden="true">
+                    👥 {pickCount.toLocaleString()} picks
+                  </span>
+                )}
+                <span className="ow-cta">Pick now →</span>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -1117,6 +1130,13 @@ export function HomeClient({
   const [pickDistribution, setPickDistribution] = useState<{ home: number; draw: number; away: number; total: number } | null>(null);
   // Issue 12 — streak for logged-in user
   const [userStreak, setUserStreak] = useState<number>(0);
+  // Issue 6 — predict panel highlight flash (triggered by CTA button)
+  const [highlightPredict, setHighlightPredict] = useState(false);
+  // Issue 7 — pick counts per open window (windowId → total picks)
+  const [windowPickCounts, setWindowPickCounts] = useState<Record<string, number>>({});
+  // Issue 10 — shortcuts overlay
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [shortcutsHintSeen, setShortcutsHintSeen] = useState(true); // true = no hint needed
 
   // Restore persisted preferences after mount (SSR-safe — no localStorage on server)
   useEffect(() => {
@@ -1127,6 +1147,14 @@ export function HomeClient({
       if (s) setSupporterTeam(s);
       const snd = localStorage.getItem("wcc_sound");
       if (snd !== null) setSoundEnabled(snd !== "false");
+      // Issue 10 — show shortcuts hint on first desktop visit
+      if (!localStorage.getItem("wcc_shortcuts_seen") && window.innerWidth >= 768) {
+        setShortcutsHintSeen(false);
+        setTimeout(() => {
+          setShortcutsHintSeen(true);
+          localStorage.setItem("wcc_shortcuts_seen", "1");
+        }, 4000);
+      }
     } catch { /* private browsing — ignore */ }
 
     // Issue 6 — parse ?ref=X&pick=HOME challenge params from URL
@@ -1227,8 +1255,28 @@ export function HomeClient({
       ]);
       const md = await mr.json();
       const bd = await br.json();
-      setMatches(Array.isArray(md) ? md : []);
+      const freshMatches: LiveMatch[] = Array.isArray(md) ? md : [];
+      setMatches(freshMatches);
       setBracket(Array.isArray(bd) ? bd : []);
+
+      // Issue 7 — fetch pick counts for every open prediction window (social proof)
+      const openWindows = freshMatches.flatMap(m =>
+        (m.windows ?? []).filter(w => w.status === "OPEN").map(w => w.id)
+      );
+      if (openWindows.length > 0) {
+        Promise.all(
+          openWindows.map(wid =>
+            fetch(`/api/picks/distribution?windowId=${wid}`)
+              .then(r => r.ok ? r.json() : null)
+              .then((d: { total?: number } | null) => d?.total != null ? ({ wid, total: d.total }) : null)
+              .catch(() => null)
+          )
+        ).then(results => {
+          const counts: Record<string, number> = {};
+          for (const r of results) { if (r) counts[r.wid] = r.total; }
+          setWindowPickCounts(counts);
+        });
+      }
     } catch {
       if (isInitial) setToast("Could not load data — check your connection.");
     } finally {
@@ -1387,6 +1435,7 @@ export function HomeClient({
         case "Escape":
           setBracketDrawer(null);
           setShowHowItWorks(false);
+          setShowShortcuts(false);
           break;
       }
     };
@@ -1397,10 +1446,10 @@ export function HomeClient({
   }, [matches, tab, submitPick]);
 
   // KPI calculations
-  const nextTs = matches.map(m => new Date(m.kickoffUtc).getTime()).filter(t => t > Date.now()).sort((a, b) => a - b)[0];
   const liveN = matches.filter(m => matchStatus(m.status) === "LIVE").length;
   const finishedN = bracket.reduce((s, g) => s + g.matches.filter(m => m.status === "FINISHED").length, 0);
-  const nextLabel = liveN > 0 ? "LIVE" : nextTs ? (countdown(new Date(nextTs).toISOString()) ?? "Soon") : "—";
+  // Issue 9 — unique KPI: open prediction windows (not redundant with countdown)
+  const openWindowsN = matches.filter(m => m.windows?.some(w => w.status === "OPEN")).length;
 
   // Full bracket always 7 stages
   const bracketMap = Object.fromEntries(bracket.map(b => [b.stage, b]));
@@ -1457,7 +1506,15 @@ export function HomeClient({
         </header>
 
         {/* ── Countdown banner ── */}
-        <CountdownBanner onPickNow={() => { setTab("predict"); }} />
+        <CountdownBanner onPickNow={() => {
+          setTab("predict");
+          setHighlightPredict(true);
+          setTimeout(() => setHighlightPredict(false), 1800);
+          // Force scroll even if already on predict tab
+          setTimeout(() => {
+            predictPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }, 80);
+        }} />
         <div className="picks-open-banner">
           🔓 Picks are open for the first 5 matches — lock yours in before June 11
         </div>
@@ -1469,6 +1526,7 @@ export function HomeClient({
             <OpenWindowsStrip
               matches={matches}
               onPickMatch={(idx) => { setActiveIdx(idx); setTab("predict"); }}
+              windowPickCounts={windowPickCounts}
             />
           )}
 
@@ -1768,13 +1826,18 @@ export function HomeClient({
                         ↑ {picksToday} today
                       </div>
                     </div>
-                    {/* Tile 2: Next kickoff / Live */}
+                    {/* Tile 2: Open Windows (unique info not shown elsewhere) */}
                     <div className="kpi-tile" role="listitem">
                       <div className="kpi-val">
-                        {liveN > 0 && <span className="kpi-dot" aria-hidden="true" />}
-                        <span style={{ fontSize: nextLabel.length > 5 ? "1.1rem" : undefined }}>{nextLabel}</span>
+                        {openWindowsN > 0 && <span className="kpi-dot kpi-dot-green" aria-hidden="true" />}
+                        <span>{openWindowsN}</span>
                       </div>
-                      <div className="kpi-label">{liveN > 0 ? "Live Now" : "Next Kickoff"}</div>
+                      <div className="kpi-label">Open Windows</div>
+                      {openWindowsN > 0 && (
+                        <div className="kpi-trend" aria-label="Picks are open now">
+                          Pick now ↗
+                        </div>
+                      )}
                     </div>
                     {/* Tile 3: Played — with mini progress bar */}
                     <div className="kpi-tile" role="listitem">
@@ -1811,7 +1874,7 @@ export function HomeClient({
                     <span className="streak-banner-cta">Keep it going!</span>
                   </div>
                 )}
-                <div className="predict-panel">
+                <div className={`predict-panel${highlightPredict ? " predict-panel-highlight" : ""}`}>
                   <div className="section-header" style={{ marginBottom: "var(--space-3)" }}>
                     <h2 className="section-title">Make Your Pick</h2>
                     <div className="row-start">
@@ -1982,13 +2045,18 @@ export function HomeClient({
                     🔗 Challenge a Friend
                   </button>
 
-                  {/* Keyboard shortcuts hint — Feature 24 */}
-                  <div className="kbd-hints" aria-label="Keyboard shortcuts">
-                    <span className="kbd-hint"><kbd>←</kbd><kbd>→</kbd> navigate</span>
-                    <span className="kbd-hint"><kbd>H</kbd> home</span>
-                    <span className="kbd-hint"><kbd>D</kbd> draw</span>
-                    <span className="kbd-hint"><kbd>A</kbd> away</span>
-                    <span className="kbd-hint"><kbd>?</kbd> how it works</span>
+                  {/* Keyboard shortcuts — Issue 10: discoverable via button + first-visit hint */}
+                  <div className={`kbd-row${!shortcutsHintSeen ? " kbd-row-hint" : ""}`} aria-label="Keyboard shortcuts">
+                    <span className="kbd-row-summary">
+                      <kbd>H</kbd><kbd>D</kbd><kbd>A</kbd> to pick · <kbd>←</kbd><kbd>→</kbd> to navigate
+                    </span>
+                    <button
+                      className="kbd-open-btn"
+                      onClick={() => { setShowShortcuts(true); setShortcutsHintSeen(true); try { localStorage.setItem("wcc_shortcuts_seen", "1"); } catch { /**/ } }}
+                      aria-label="Show all keyboard shortcuts"
+                    >
+                      ⌨ All shortcuts
+                    </button>
                   </div>
                 </div>
 
@@ -2195,6 +2263,44 @@ export function HomeClient({
 
             <button className="hiw-start-btn" onClick={() => { setShowHowItWorks(false); setTab("predict"); }}>
               Start Predicting →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Issue 10 — Keyboard shortcuts overlay */}
+      {showShortcuts && (
+        <div
+          className="shortcuts-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Keyboard shortcuts"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowShortcuts(false); }}
+        >
+          <div className="shortcuts-modal">
+            <button className="shortcuts-close" onClick={() => setShowShortcuts(false)} aria-label="Close">✕</button>
+            <h2 className="shortcuts-title">⌨ Keyboard Shortcuts</h2>
+            <p className="shortcuts-subtitle">Speed through picks without touching the mouse</p>
+            <div className="shortcuts-list">
+              {([
+                { keys: ["H"], desc: "Pick Home win" },
+                { keys: ["D"], desc: "Pick Draw" },
+                { keys: ["A"], desc: "Pick Away win" },
+                { keys: ["←", "→"], desc: "Previous / Next match" },
+                { keys: ["↑", "↓"], desc: "Previous / Next match" },
+                { keys: ["?"], desc: "Open How It Works" },
+                { keys: ["Esc"], desc: "Close overlays" },
+              ] as const).map(({ keys, desc }) => (
+                <div key={desc} className="shortcut-row">
+                  <div className="shortcut-keys">
+                    {keys.map((k) => <kbd key={k} className="shortcut-kbd">{k}</kbd>)}
+                  </div>
+                  <span className="shortcut-desc">{desc}</span>
+                </div>
+              ))}
+            </div>
+            <button className="shortcuts-start-btn" onClick={() => { setShowShortcuts(false); setTab("predict"); }}>
+              Start picking →
             </button>
           </div>
         </div>

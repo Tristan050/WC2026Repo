@@ -4152,3 +4152,210 @@ kbd {
   .mp-dist-row-label { width: 80px; }
   .mp-community-label { width: 80px; }
 }
+
+/* ═══════════════════════════════════════════════════════
+   ISSUE 6 — PREDICT PANEL HIGHLIGHT
+═══════════════════════════════════════════════════════ */
+@keyframes predictHighlight {
+  0%   { box-shadow: 0 0 0 3px rgba(0,102,255,0); }
+  20%  { box-shadow: 0 0 0 3px rgba(0,102,255,0.7), 0 0 32px rgba(0,102,255,0.25); }
+  60%  { box-shadow: 0 0 0 3px rgba(0,102,255,0.5), 0 0 24px rgba(0,102,255,0.18); }
+  100% { box-shadow: 0 0 0 3px rgba(0,102,255,0); }
+}
+.predict-panel-highlight {
+  animation: predictHighlight 1.8s ease forwards;
+  border-radius: var(--radius-lg);
+}
+
+/* ═══════════════════════════════════════════════════════
+   ISSUE 7 — OPEN WINDOWS STRIP WITH PICK COUNTS
+═══════════════════════════════════════════════════════ */
+.ow-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+}
+.ow-pick-count {
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════════════════════
+   ISSUE 10 — KEYBOARD SHORTCUTS ROW + OVERLAY
+═══════════════════════════════════════════════════════ */
+
+/* Replace old kbd-hints with compact row + button */
+.kbd-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: var(--space-3);
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: all 0.3s ease;
+}
+/* First-visit hint: glow the row to draw attention */
+.kbd-row-hint {
+  border-color: rgba(0,102,255,0.4);
+  background: rgba(0,102,255,0.06);
+  box-shadow: 0 0 12px rgba(0,102,255,0.15);
+  animation: kbdHintPulse 2s ease infinite;
+}
+@keyframes kbdHintPulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(0,102,255,0.15); }
+  50%       { box-shadow: 0 0 20px rgba(0,102,255,0.3); }
+}
+.kbd-row-summary {
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.kbd-row-summary kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.65rem;
+  font-family: var(--font-mono, monospace);
+  color: var(--text-secondary);
+  min-width: 18px;
+}
+.kbd-open-btn {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--brand-light);
+  background: rgba(0,102,255,0.1);
+  border: 1px solid rgba(0,102,255,0.25);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+.kbd-open-btn:hover {
+  background: rgba(0,102,255,0.18);
+  border-color: rgba(0,102,255,0.4);
+}
+/* Hide on mobile — keyboard shortcuts are desktop-only */
+@media (max-width: 767px) { .kbd-row { display: none; } }
+
+/* ── Shortcuts overlay ── */
+.shortcuts-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(3,8,15,0.85);
+  backdrop-filter: blur(12px);
+  z-index: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.shortcuts-modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl, 20px);
+  padding: 28px;
+  width: 100%;
+  max-width: 400px;
+  position: relative;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+}
+.shortcuts-close {
+  position: absolute;
+  top: 16px; right: 16px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 32px; height: 32px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.shortcuts-close:hover { background: rgba(255,255,255,0.12); color: var(--text-primary); }
+.shortcuts-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  margin: 0 0 4px;
+}
+.shortcuts-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  margin: 0 0 20px;
+}
+.shortcuts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+}
+.shortcut-row:hover { background: rgba(255,255,255,0.05); }
+.shortcut-keys {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  min-width: 72px;
+}
+.shortcut-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  font-family: var(--font-mono, monospace);
+  font-weight: 700;
+  color: var(--text-primary);
+  min-width: 24px;
+  text-align: center;
+}
+.shortcut-desc {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+.shortcuts-start-btn {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(135deg, var(--brand-mid), var(--brand-light));
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.88rem;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.shortcuts-start-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0,102,255,0.35);
+}
