@@ -4,12 +4,12 @@ import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { signIn, signOut } from "next-auth/react";
 
 /* ─────────────────────── COUNTDOWN ─────────────────────── */
-const KICKOFF_UTC = new Date("2026-06-11T18:00:00.000Z");
+const FEATURED_MATCH_UTC = new Date("2026-07-09T20:00:00.000Z");
 
 function useCountdown() {
-  const [left, setLeft] = useState(() => KICKOFF_UTC.getTime() - Date.now());
+  const [left, setLeft] = useState(() => FEATURED_MATCH_UTC.getTime() - Date.now());
   useEffect(() => {
-    const t = setInterval(() => setLeft(KICKOFF_UTC.getTime() - Date.now()), 1000);
+    const t = setInterval(() => setLeft(FEATURED_MATCH_UTC.getTime() - Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
   if (left <= 0) return null;
@@ -29,7 +29,7 @@ function CountdownBanner({ onPickNow }: { onPickNow?: () => void }) {
   if (!t) return (
     <div className="cd-banner cd-banner-live" role="status" aria-label="World Cup 2026 is live">
       <span className="cd-live-pulse" aria-hidden="true" />
-      <span className="cd-live-label">🏆 WORLD CUP 2026 IS LIVE</span>
+      <span className="cd-live-label">QUARTER-FINALS ARE LIVE</span>
       <span className="cd-live-pulse" aria-hidden="true" />
     </div>
   );
@@ -40,7 +40,7 @@ function CountdownBanner({ onPickNow }: { onPickNow?: () => void }) {
       role="timer"
       aria-label={`Kickoff in ${t.days} days ${t.hrs} hours ${t.mins} minutes ${t.secs} seconds`}
     >
-      <span className="cd-eyebrow">⚽ KICKOFF IN</span>
+      <span className="cd-eyebrow">NEXT QUARTER-FINAL IN</span>
       <div className="cd-clock" aria-hidden="true">
         <div className="cd-unit">
           <span className="cd-n" key={t.days}>{t.days}</span>
@@ -64,10 +64,10 @@ function CountdownBanner({ onPickNow }: { onPickNow?: () => void }) {
           <span className="cd-l">SEC</span>
         </div>
       </div>
-      <span className="cd-match">🇲🇽 Mexico vs South Africa 🇿🇦 · Azteca</span>
+      <span className="cd-match">Morocco vs France · Boston Stadium · 22:00 NL</span>
       {onPickNow && (
         <button className="cd-cta-btn" onClick={onPickNow} aria-label="Pre-register your picks">
-          Pre-register picks →
+          Pick now
         </button>
       )}
     </div>
@@ -158,6 +158,44 @@ function stageLabel(s: string): string {
     QUARTER_FINAL: "Quarter-Final", SEMI_FINAL: "Semi-Final",
     THIRD_PLACE: "Third Place", FINAL: "Final 🏆",
   }[s] ?? s.replaceAll("_", " "));
+}
+function predictionKindLabel(kind: string): string {
+  return ({
+    MATCH_WINNER: "Winner",
+    BOTH_TEAMS_SCORE: "BTTS",
+    UPSET_PICK: "Upset",
+    NEXT_GOAL_TEAM: "Next Goal",
+    TOTAL_GOALS_OVER_UNDER: "Goals",
+    FIRST_CARD_TEAM: "First Card",
+    CLEAN_SHEET: "Clean Sheet",
+    PENALTY_IN_MATCH: "Penalty",
+  }[kind] ?? kind.replaceAll("_", " "));
+}
+function predictionChoices(kind: string, activeMatch: LiveMatch | null) {
+  if (kind === "BOTH_TEAMS_SCORE") {
+    return [
+      { value: "YES", label: "Yes", sub: "Both score" },
+      { value: "NO", label: "No", sub: "Clean sheet" },
+    ];
+  }
+  if (kind === "UPSET_PICK") {
+    return [
+      { value: "HOME", label: `${flag(activeMatch?.homeSlot?.label ?? "")} Home Upset`, sub: activeMatch?.homeSlot?.label ?? "Home" },
+      { value: "AWAY", label: `Away Upset ${flag(activeMatch?.awaySlot?.label ?? "")}`, sub: activeMatch?.awaySlot?.label ?? "Away" },
+    ];
+  }
+  return [
+    { value: "HOME", label: `${flag(activeMatch?.homeSlot?.label ?? "")} Home Wins`, sub: activeMatch?.homeSlot?.label ?? "Home" },
+    { value: "AWAY", label: `Away Wins ${flag(activeMatch?.awaySlot?.label ?? "")}`, sub: activeMatch?.awaySlot?.label ?? "Away" },
+    { value: "DRAW", label: "Draw", sub: "90 min" },
+  ];
+}
+function choiceLabel(choice: string, match: LiveMatch | null, kind = "MATCH_WINNER") {
+  if (kind === "BOTH_TEAMS_SCORE") return choice === "YES" ? "Both teams to score" : "Not both teams to score";
+  if (choice === "HOME") return match?.homeSlot?.label ?? "Home";
+  if (choice === "AWAY") return match?.awaySlot?.label ?? "Away";
+  if (choice === "DRAW") return "Draw";
+  return choice;
 }
 /* Team strength lookup — derived from FIFA world rankings (pre-WC 2026).
    Scale: 100 = best, 40 = weakest qualifier. Used as fallback when DB odds are null. */
@@ -990,7 +1028,7 @@ function MiniLeaderboard({
         <div className="mini-lb-empty" role="status">
           <span className="mini-lb-empty-icon" aria-hidden="true">🚀</span>
           <div>
-            <p className="mini-lb-empty-title">Tournament kicks off Jun 11</p>
+            <p className="mini-lb-empty-title">Quarter-final picks are open</p>
             <p className="mini-lb-empty-sub">Make your picks now — be the first name on the leaderboard.</p>
           </div>
           <button className="mini-lb-cta" onClick={onViewAll}>
@@ -1103,6 +1141,7 @@ export function HomeClient({
   const [activeIdx, setActiveIdx] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState<string | null>(null);
+  const [selectedWindowId, setSelectedWindowId] = useState<string | null>(null);
   const [pickFlash, setPickFlash] = useState(false);
   const [picks, setPicks] = useState(312);
   const [tab, setTab] = useState<Tab>("matches");
@@ -1353,18 +1392,30 @@ export function HomeClient({
   }, [matches, feedFilter]);
 
   const activeMatch = matches[activeIdx] ?? null;
-  const openWindow = useMemo(
-    () => activeMatch?.windows?.find(w => w.status === "OPEN") ?? null,
+  const openWindows = useMemo(
+    () => activeMatch?.windows?.filter(w => w.status === "OPEN") ?? [],
     [activeMatch]
+  );
+  const openWindow = useMemo(
+    () => openWindows.find(w => w.id === selectedWindowId) ?? openWindows[0] ?? null,
+    [openWindows, selectedWindowId]
+  );
+  const choices = useMemo(
+    () => predictionChoices(openWindow?.kind ?? "MATCH_WINNER", activeMatch),
+    [openWindow, activeMatch]
   );
   // Sync `submitted` from myPicks whenever the active match or known picks change.
   // This means: after a refresh the pick shows as locked; navigating to a new match
   // shows the existing pick for that match (or null if none).
   useEffect(() => {
-    const existingPick = myPicks[activeMatch?.id ?? ""] ?? null;
+    const existingPick = myPicks[openWindow?.id ?? ""] ?? null;
     setSubmitted(existingPick);
     setPickDistribution(null);
-  }, [activeIdx, myPicks]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeIdx, openWindow?.id, myPicks]);
+
+  useEffect(() => {
+    setSelectedWindowId(null);
+  }, [activeIdx]);
 
   useEffect(() => {
     document.documentElement.classList.toggle("light", theme === "light");
@@ -1417,7 +1468,7 @@ export function HomeClient({
       setShowConfetti(true);
       setTimeout(() => setShowConfetti(false), 1100);
       if (soundEnabled) playPickSound();
-      if (activeMatch) setMyPicks(p => ({ ...p, [activeMatch.id]: choice }));
+      if (openWindow) setMyPicks(p => ({ ...p, [openWindow.id]: choice }));
       if (!localStorage.getItem("wcc_notif") && typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
         setTimeout(() => setNotifPrompt(true), 1200);
       }
@@ -1566,7 +1617,7 @@ export function HomeClient({
           }, 80);
         }} />
         <div className="picks-open-banner">
-          🔓 Picks are open for the first 5 matches — lock yours in before June 11
+          Picks are open for all remaining knockout matches — lock yours before each kickoff
         </div>
 
         <main className="page" id="main-content">
@@ -1639,17 +1690,17 @@ export function HomeClient({
 
           {/* ── Hero ── */}
           <section className="hero" aria-labelledby="hero-heading">
-            <div className="hero-eyebrow" aria-label="FIFA World Cup 2026 — Official Predictor">
-              ⚽ FIFA WORLD CUP 2026 · OFFICIAL PREDICTOR
+            <div className="hero-eyebrow" aria-label="FIFA World Cup 2026 quarter-final predictor">
+              FIFA WORLD CUP 2026 · QUARTER-FINAL PREDICTOR
             </div>
             <h1 id="hero-heading">World Cup 2026 Predictions &amp; Match Picks</h1>
             <h2 className="hero-h2">
-              PICK THE WINNERS.
-              <span className="highlight">BEAT YOUR FRIENDS.</span>
+              PICK TONIGHT&apos;S WINNER.
+              <span className="highlight">OWN THE KNOCKOUTS.</span>
             </h2>
             <p className="hero-sub">
-              The ultimate World Cup prediction game. Predict every match, build your streak,
-              and climb the global leaderboard across all 104 games.
+              The bracket is down to eight teams. Predict every remaining match,
+              build your streak, and climb the leaderboard before each window locks.
             </p>
             <button
               className="hero-cta"
@@ -1732,8 +1783,8 @@ export function HomeClient({
               </div>
               <div className="hero-stat-divider" aria-hidden="true" />
               <div className="hero-stat" role="listitem">
-                <span className="hero-stat-v">Jun 11</span>
-                <span className="hero-stat-l">Kick-off</span>
+                <span className="hero-stat-v">Jul 9</span>
+                <span className="hero-stat-l">QF Start</span>
               </div>
             </div>
             <div className="how-it-works" aria-label="How it works — 3 steps">
@@ -2031,19 +2082,13 @@ export function HomeClient({
                             <span className="apb-check">✅</span>
                             <span className="apb-text">
                               Your pick:{" "}
-                              <strong>
-                                {submitted === "HOME"
-                                  ? `${flag(activeMatch.homeSlot?.label ?? "")} ${activeMatch.homeSlot?.label ?? "Home"} Win`
-                                  : submitted === "AWAY"
-                                  ? `${activeMatch.awaySlot?.label ?? "Away"} ${flag(activeMatch.awaySlot?.label ?? "")} Win`
-                                  : "Draw"}
-                              </strong>
+                              <strong>{choiceLabel(submitted, activeMatch, openWindow?.kind)}</strong>
                             </span>
                             <span className="apb-pts">+3 pts if correct</span>
                           </div>
                         )}
                         <span className={`window-badge ${openWindow ? "window-open" : "window-locked"}`} role="status">
-                          {openWindow ? <>🟢 Window open — {openWindow.kind.replaceAll("_", " ")}</> : <>🔒 Locked · opens 24h before kickoff</>}
+                          {openWindow ? <>Window open · {predictionKindLabel(openWindow.kind)}</> : <>Locked · opens 24h before kickoff</>}
                         </span>
                       </>
                     ) : (
@@ -2054,34 +2099,39 @@ export function HomeClient({
                     )}
                   </div>
 
+                  {openWindows.length > 1 && (
+                    <div className="question-tabs" role="tablist" aria-label="Prediction types">
+                      {openWindows.map(w => (
+                        <button
+                          key={w.id}
+                          role="tab"
+                          aria-selected={openWindow?.id === w.id}
+                          className={`question-tab${openWindow?.id === w.id ? " active" : ""}`}
+                          onClick={() => {
+                            setSelectedWindowId(w.id);
+                            setPickDistribution(null);
+                          }}
+                        >
+                          {predictionKindLabel(w.kind)}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
                   {/* Pick buttons */}
                   <div className="pick-grid" role="group" aria-label="Prediction choices">
-                    {(["HOME", "AWAY", "DRAW"] as const).map(c => (
+                    {choices.map(c => (
                       <button
-                        key={c}
-                        className={`pick-btn${submitted === c ? " selected" : ""}`}
-                        onClick={() => submitPick(c)}
+                        key={c.value}
+                        className={`pick-btn${submitted === c.value ? " selected" : ""}`}
+                        onClick={() => submitPick(c.value)}
                         disabled={!openWindow || submitting}
-                        aria-pressed={submitted === c}
-                        aria-label={
-                          c === "HOME" ? `Pick ${activeMatch?.homeSlot?.label ?? "home team"} to win` :
-                            c === "AWAY" ? `Pick ${activeMatch?.awaySlot?.label ?? "away team"} to win` :
-                              "Pick a draw"
-                        }
+                        aria-pressed={submitted === c.value}
+                        aria-label={`Pick ${c.label}`}
                       >
-                        {submitted === c && <span className="pick-btn-check" aria-hidden="true">✓</span>}
-                        {c === "HOME" && <>
-                          <span className="pick-btn-label">{flag(activeMatch?.homeSlot?.label ?? "")} Home Wins</span>
-                          {activeMatch && <span className="pick-btn-sub">{activeMatch.homeSlot?.label}</span>}
-                        </>}
-                        {c === "AWAY" && <>
-                          <span className="pick-btn-label">Away Wins {flag(activeMatch?.awaySlot?.label ?? "")}</span>
-                          {activeMatch && <span className="pick-btn-sub">{activeMatch.awaySlot?.label}</span>}
-                        </>}
-                        {c === "DRAW" && <>
-                          <span className="pick-btn-label">Draw</span>
-                          <span className="pick-btn-sub">90 min</span>
-                        </>}
+                        {submitted === c.value && <span className="pick-btn-check" aria-hidden="true">✓</span>}
+                        <span className="pick-btn-label">{c.label}</span>
+                        <span className="pick-btn-sub">{c.sub}</span>
                       </button>
                     ))}
                     {/* 4th button spans full width */}
@@ -2094,7 +2144,7 @@ export function HomeClient({
                   </div>
 
                   {/* Trending picks — revealed after user submits a pick */}
-                  {submitted && activeMatch && (() => {
+                  {submitted && activeMatch && openWindow?.kind === "MATCH_WINNER" && (() => {
                     // Use real DB distribution when available, otherwise fall back to odds/strength estimates
                     const useReal = pickDistribution !== null && pickDistribution.total > 0;
                     const total = useReal ? pickDistribution!.total : 0;
@@ -2152,7 +2202,7 @@ export function HomeClient({
                             ? (activeMatch?.homeSlot?.label ?? "Home")
                             : submitted === "AWAY"
                             ? (activeMatch?.awaySlot?.label ?? "Away")
-                            : "Draw"}
+                            : choiceLabel(submitted, activeMatch, openWindow?.kind)}
                         </strong>
                       </span>
                       <span className="pick-confirm-pts">+3 pts</span>
@@ -2166,10 +2216,7 @@ export function HomeClient({
                       const home = activeMatch.homeSlot?.label ?? "Home";
                       const away = activeMatch.awaySlot?.label ?? "Away";
                       const slug = matchSlugFor(home, away);
-                      const pickLabel =
-                        submitted === "HOME" ? `${home} to win`
-                        : submitted === "AWAY" ? `${away} to win`
-                        : "a Draw";
+                      const pickLabel = choiceLabel(submitted, activeMatch, openWindow?.kind);
                       // Deep link → match page with pick + optional ref (real display name)
                       const refName = sessionDisplayName || "a friend";
                       const deepUrl = `${SITE}/match/${slug}?ref=${encodeURIComponent(refName)}&pick=${submitted}`;

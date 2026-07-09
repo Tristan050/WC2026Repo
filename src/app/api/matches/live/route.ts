@@ -9,15 +9,13 @@ export async function GET() {
       OR: [
         { status: { in: ["LIVE", "HALFTIME", "EXTRA_TIME", "PENALTIES"] } },
         {
-          kickoffUtc: {
-            gte: new Date(now.getTime() - 2 * 60 * 60 * 1000),
-            lte: new Date(now.getTime() + 24 * 60 * 60 * 1000)
-          }
+          status: { not: "FINISHED" },
+          kickoffUtc: { gte: new Date(now.getTime() - 2 * 60 * 60 * 1000) }
         }
       ]
     },
     orderBy: [{ kickoffUtc: "asc" }],
-    take: 50,
+    take: 20,
     include: {
       stadium: true,
       homeSlot: true,

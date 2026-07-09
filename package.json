@@ -15,6 +15,7 @@
     "seed": "tsx prisma/seed.ts",
     "fixtures:sync": "tsx scripts/sync-official-fixtures.ts",
     "fixtures:export": "node scripts/export-official-fixtures.cjs",
+    "phase:current": "tsx scripts/sync-current-phase.ts",
     "db:push": "prisma db push",
     "worker:events": "tsx src/workers/match-event.runner.ts",
     "worker:windows": "tsx src/workers/prediction-window.runner.ts",

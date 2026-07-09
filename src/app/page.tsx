@@ -34,19 +34,23 @@ async function prefetchData(): Promise<{
   initialMatches: LiveMatch[];
   initialBracket: BracketStage[];
 }> {
+  if (process.env.NEXT_PHASE === "phase-production-build") {
+    return { initialMatches: [], initialBracket: [] };
+  }
+
   try {
     const now = new Date();
 
     const [rawMatches, bracketMatches] = await Promise.all([
-      // Same logic as /api/matches/live: live or within 24 h window, else next upcoming
+      // Same logic as /api/matches/live: live or all remaining unfinished fixtures.
       prisma.match.findMany({
         where: {
           OR: [
             { status: { in: ["LIVE", "HALFTIME", "EXTRA_TIME", "PENALTIES"] } },
             {
+              status: { not: "FINISHED" },
               kickoffUtc: {
-                gte: new Date(now.getTime() - 2 * 60 * 60 * 1000),  // 2 h ago
-                lte: new Date(now.getTime() + 24 * 60 * 60 * 1000), // 24 h ahead
+                gte: new Date(now.getTime() - 2 * 60 * 60 * 1000),
               },
             },
           ],
@@ -80,7 +84,7 @@ async function prefetchData(): Promise<{
       }),
     ]);
 
-    // Fall back to next 20 upcoming matches if nothing in the 24-h window
+    // Fall back to next 20 upcoming matches if no live/unfinished matches are found.
     const matches =
       rawMatches.length > 0
         ? rawMatches
